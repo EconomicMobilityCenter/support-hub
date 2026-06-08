@@ -48,7 +48,7 @@ function ArticlePage() {
       <h1 className="mt-4 text-3xl font-bold tracking-tight">{article.title}</h1>
       <p className="mt-2 text-muted-foreground">{article.description}</p>
       <div className="mt-3 flex flex-wrap gap-1">
-        {article.products.map((p) => (
+        {article.products.map((p: string) => (
           <span
             key={p}
             className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
