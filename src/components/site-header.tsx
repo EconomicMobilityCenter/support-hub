@@ -33,6 +33,11 @@ export function SiteHeader() {
                 <div className="text-foreground font-medium">{org.name}</div>
                 <div>Signed-in via link</div>
               </>
+            ) : orgId && orgId !== "public" ? (
+              <>
+                <div className="text-foreground font-medium">{orgId}</div>
+                <div>Signed-in via link</div>
+              </>
             ) : (
               <div className="text-foreground font-medium">Public user</div>
             )}
