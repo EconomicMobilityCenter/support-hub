@@ -9,38 +9,103 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SupportRouteImport } from './routes/support'
+import { Route as ReportIssueRouteImport } from './routes/report-issue'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TrainingIndexRouteImport } from './routes/training.index'
+import { Route as TrainingSlugRouteImport } from './routes/training.$slug'
 
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportIssueRoute = ReportIssueRouteImport.update({
+  id: '/report-issue',
+  path: '/report-issue',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrainingIndexRoute = TrainingIndexRouteImport.update({
+  id: '/training/',
+  path: '/training/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrainingSlugRoute = TrainingSlugRouteImport.update({
+  id: '/training/$slug',
+  path: '/training/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/report-issue': typeof ReportIssueRoute
+  '/support': typeof SupportRoute
+  '/training/$slug': typeof TrainingSlugRoute
+  '/training/': typeof TrainingIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/report-issue': typeof ReportIssueRoute
+  '/support': typeof SupportRoute
+  '/training/$slug': typeof TrainingSlugRoute
+  '/training': typeof TrainingIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/report-issue': typeof ReportIssueRoute
+  '/support': typeof SupportRoute
+  '/training/$slug': typeof TrainingSlugRoute
+  '/training/': typeof TrainingIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/report-issue'
+    | '/support'
+    | '/training/$slug'
+    | '/training/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/report-issue' | '/support' | '/training/$slug' | '/training'
+  id:
+    | '__root__'
+    | '/'
+    | '/report-issue'
+    | '/support'
+    | '/training/$slug'
+    | '/training/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ReportIssueRoute: typeof ReportIssueRoute
+  SupportRoute: typeof SupportRoute
+  TrainingSlugRoute: typeof TrainingSlugRoute
+  TrainingIndexRoute: typeof TrainingIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/report-issue': {
+      id: '/report-issue'
+      path: '/report-issue'
+      fullPath: '/report-issue'
+      preLoaderRoute: typeof ReportIssueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +113,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/training/': {
+      id: '/training/'
+      path: '/training'
+      fullPath: '/training/'
+      preLoaderRoute: typeof TrainingIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/training/$slug': {
+      id: '/training/$slug'
+      path: '/training/$slug'
+      fullPath: '/training/$slug'
+      preLoaderRoute: typeof TrainingSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ReportIssueRoute: ReportIssueRoute,
+  SupportRoute: SupportRoute,
+  TrainingSlugRoute: TrainingSlugRoute,
+  TrainingIndexRoute: TrainingIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

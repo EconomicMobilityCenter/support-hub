@@ -1,29 +1,75 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useOrg } from "@/hooks/use-org";
+import { productName } from "@/lib/products";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "Support Center" },
+      { name: "description", content: "Training, support, and issue reporting for our Excel products." },
     ],
   }),
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
+  const { org, orgId } = useOrg();
+  const products = org?.products ?? [];
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="mx-auto max-w-3xl px-6 py-12 space-y-10">
+      <section className="space-y-3">
+        <h1 className="text-4xl font-bold tracking-tight">How can we help?</h1>
+        <p className="text-muted-foreground">
+          {org
+            ? `Welcome, ${org.name}. Pick a section below to get started.`
+            : orgId
+              ? "We couldn't identify your organization from this link, so you're seeing the public view."
+              : "Browse training material or contact our team."}
+        </p>
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-3">
+        <Tile to="/training" title="Training" desc="Step-by-step guides for each product." />
+        <Tile to="/report-issue" title="Report an issue" desc="Tell us what's broken." />
+        <Tile to="/support" title="Get support" desc="Questions, how-tos, account requests." />
+      </section>
+
+      {org && (
+        <section className="rounded-lg border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+            Your products
+          </h2>
+          {products.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No products are associated with this organization yet.
+            </p>
+          ) : (
+            <ul className="flex flex-wrap gap-2">
+              {products.map((p) => (
+                <li
+                  key={p}
+                  className="rounded-full bg-secondary px-3 py-1 text-sm text-secondary-foreground"
+                >
+                  {productName(p)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </div>
+  );
+}
+
+function Tile({ to, title, desc }: { to: "/training" | "/report-issue" | "/support"; title: string; desc: string }) {
+  return (
+    <Link
+      to={to}
+      className="block rounded-lg border border-border bg-card p-5 hover:bg-accent transition-colors"
+    >
+      <div className="font-semibold mb-1">{title}</div>
+      <div className="text-sm text-muted-foreground">{desc}</div>
+    </Link>
   );
 }
