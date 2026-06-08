@@ -31,8 +31,8 @@ export function SubmissionForm({
   const search = useSearch({ strict: false }) as { product?: string };
   const submit = useServerFn(submitForm);
 
-  const availableProducts = org
-    ? PRODUCTS.filter((p) => org.products.includes(p.slug))
+  const availableProducts = org?.products
+    ? PRODUCTS.filter((p) => org.products!.includes(p.slug))
     : PRODUCTS;
 
   const [contactName, setContactName] = useState("");
@@ -117,7 +117,7 @@ export function SubmissionForm({
 
           mutation.mutate({
             type,
-            orgId: orgId ?? null,
+            orgId: orgId || null,
             orgName: org?.name ?? null,
             product: product || null,
             contactName,

@@ -1,7 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useOrg } from "@/hooks/use-org";
-import { getArticlesForProducts } from "@/lib/training-content";
-import { productName } from "@/lib/products";
+import { useContent } from "@/hooks/use-content";
+import type { ContentItem } from "@/lib/content.functions";
 
 export const Route = createFileRoute("/training/")({
   head: () => ({
@@ -13,51 +22,114 @@ export const Route = createFileRoute("/training/")({
   component: TrainingIndex,
 });
 
+function renderMarkdown(body: string): string {
+  const html = marked.parse(body, { async: false }) as string;
+  return DOMPurify.sanitize(html);
+}
+
+function ArticleItem({ item }: { item: ContentItem }) {
+  const [open, setOpen] = useState(false);
+  const html = useMemo(() => (open ? renderMarkdown(item.body) : ""), [open, item.body]);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="text-left text-[#003291] hover:underline"
+      >
+        {item.title}
+      </button>
+      {open && (
+        <div
+          className="prose prose-sm mt-2 max-w-none"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      )}
+    </div>
+  );
+}
+
+function LinkItem({ item }: { item: ContentItem }) {
+  if (!item.link) return <div className="text-muted-foreground">{item.title}</div>;
+  return (
+    <a
+      href={item.link}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="text-[#003291] hover:underline"
+    >
+      {item.title}
+    </a>
+  );
+}
+
 function TrainingIndex() {
-  const { org, orgId } = useOrg();
-  const articles = getArticlesForProducts(org ? org.products : null);
+  const { orgId } = useOrg();
+  const { data, isLoading, error } = useContent();
+
+  const groups = useMemo(() => {
+    const visible = data.items.filter(
+      (it) =>
+        it.category === "Training" &&
+        it.published !== false &&
+        (it.orgs.includes(orgId) || it.orgs.includes("all")),
+    );
+    const byGroup = new Map<string, ContentItem[]>();
+    for (const it of visible) {
+      const arr = byGroup.get(it.group) ?? [];
+      arr.push(it);
+      byGroup.set(it.group, arr);
+    }
+    return Array.from(byGroup.entries())
+      .map(([name, items]) => ({
+        name,
+        items: items.sort((a, b) => a.order - b.order),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [data.items, orgId]);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12 space-y-8">
+    <div className="mx-auto max-w-3xl px-6 py-12 space-y-6">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Training</h1>
-        <p className="text-muted-foreground">
-          {org
-            ? `Showing material for ${org.name}'s products.`
-            : orgId
-              ? "Unknown organization — showing all public training material."
-              : "Showing all public training material."}
-        </p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#00005c]">Training</h1>
       </header>
 
-      {articles.length === 0 ? (
-        <p className="text-muted-foreground">No training material is available for your products yet.</p>
-      ) : (
-        <ul className="space-y-3">
-          {articles.map((a) => (
-            <li key={a.slug}>
-              <Link
-                to="/training/$slug"
-                params={{ slug: a.slug }}
-                className="block rounded-lg border border-border bg-card p-5 hover:bg-accent transition-colors"
-              >
-                <div className="font-semibold">{a.title}</div>
-                <div className="text-sm text-muted-foreground mt-1">{a.description}</div>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {a.products.map((p) => (
-                    <span
-                      key={p}
-                      className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
-                    >
-                      {productName(p)}
-                    </span>
-                  ))}
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+      {isLoading && <p className="text-muted-foreground">Loading training material…</p>}
+      {error && !isLoading && (
+        <p className="text-sm text-destructive">Couldn't load content: {error}</p>
       )}
+      {!isLoading && !error && groups.length === 0 && (
+        <p className="text-muted-foreground">
+          No training material available for your organization yet.
+        </p>
+      )}
+
+      <div className="space-y-3">
+        {groups.map((g) => (
+          <Collapsible
+            key={g.name}
+            className="rounded-lg border border-border bg-card"
+          >
+            <CollapsibleTrigger className="group flex w-full items-center justify-between px-5 py-4 text-left">
+              <span className="font-semibold text-[#00005c]">{g.name}</span>
+              <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="border-t border-border px-5 py-4">
+              <ul className="space-y-3">
+                {g.items.map((it) => (
+                  <li key={it.slug}>
+                    {it.type === "article" ? (
+                      <ArticleItem item={it} />
+                    ) : (
+                      <LinkItem item={it} />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </CollapsibleContent>
+          </Collapsible>
+        ))}
+      </div>
     </div>
   );
 }
