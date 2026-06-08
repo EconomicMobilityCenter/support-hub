@@ -13,7 +13,7 @@ export function SiteHeader() {
 
   return (
     <header className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-10">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-6 py-4">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">
         <Link to="/" className="flex items-center gap-3 tracking-tight font-sans font-bold text-[#00005c]">
           <img src={emcLogo.url} alt="Economic Mobility Center" className="h-10 w-auto" />
           <span>EMC Support</span>

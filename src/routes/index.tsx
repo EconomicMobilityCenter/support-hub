@@ -19,7 +19,7 @@ function Index() {
   return (
     <div>
       <section className="w-full bg-[#C2EBFF] py-20">
-        <div className="mx-auto max-w-3xl px-6 space-y-3 text-center">
+        <div className="mx-auto max-w-6xl px-6 space-y-3 text-center">
           <h1 className="text-4xl font-extrabold tracking-tight text-[#003291]">
             How can we help?
           </h1>
@@ -33,7 +33,7 @@ function Index() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-3xl px-6 py-12 space-y-10">
+      <div className="mx-auto max-w-6xl px-6 py-12 space-y-10">
       <section className="grid gap-4 sm:grid-cols-2">
         <Tile to="/training" title="Training" desc="Step-by-step guides for each product." />
         <Tile to="/get-help" title="Get Help" desc="Ask a question or report an issue." />
