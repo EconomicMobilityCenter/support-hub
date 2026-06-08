@@ -1,9 +1,11 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { useOrg } from "@/hooks/use-org";
 import emcLogo from "@/assets/emc-logo.webp.asset.json";
 
 export function SiteHeader() {
-  const { org, orgId, isLoading } = useOrg();
+  const { org, isLoading } = useOrg();
+  const search = useSearch({ strict: false }) as { org?: string };
+  const requestedOrg = search.org ?? null;
 
   const navClass =
     "text-sm font-semibold text-[#00005E] hover:text-[#003291] transition-colors";
@@ -31,6 +33,11 @@ export function SiteHeader() {
             ) : org ? (
               <>
                 <div className="text-foreground font-medium">{org.name}</div>
+                <div>Signed-in via link</div>
+              </>
+            ) : requestedOrg ? (
+              <>
+                <div className="text-foreground font-medium">{requestedOrg}</div>
                 <div>Signed-in via link</div>
               </>
             ) : (
