@@ -22,6 +22,25 @@ export type OrgConfig = {
   contactEmail?: string;
 };
 
+type RawOrgConfig = {
+  name?: string;
+  displayName?: string;
+  products?: string[];
+  contactName?: string;
+  contactEmail?: string;
+  contact?: { name?: string; email?: string; label?: string };
+};
+
+function normalizeOrg(id: string, v: RawOrgConfig): OrgConfig {
+  return {
+    id,
+    name: v.name ?? v.displayName ?? id,
+    products: Array.isArray(v.products) ? v.products : [],
+    contactName: v.contactName ?? v.contact?.name,
+    contactEmail: v.contactEmail ?? v.contact?.email,
+  };
+}
+
 export type ContentBundle = {
   items: ContentItem[];
   orgs: Record<string, OrgConfig>;
@@ -106,7 +125,10 @@ async function fetchBundle(): Promise<ContentBundle> {
     );
     if (orgsRes.ok) {
       try {
-        orgs = (await orgsRes.json()) as Record<string, OrgConfig>;
+        const raw = (await orgsRes.json()) as Record<string, RawOrgConfig>;
+        orgs = Object.fromEntries(
+          Object.entries(raw).map(([id, v]) => [id, normalizeOrg(id, v)]),
+        );
       } catch {
         orgs = {};
       }
