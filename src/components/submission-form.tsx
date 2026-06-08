@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { useOrg } from "@/hooks/use-org";
 import { PRODUCTS } from "@/lib/products";
-import { submitForm } from "@/lib/submissions.functions";
+import { submitForm, type SubmissionInput } from "@/lib/submissions.functions";
 
 type Field = {
   name: string;
@@ -58,7 +58,7 @@ export function SubmissionForm({
   }, [search.product, availableProducts.length]);
 
   const mutation = useMutation({
-    mutationFn: (input: Parameters<typeof submit>[0]["data"]) => submit({ data: input }),
+    mutationFn: (input: SubmissionInput) => submit({ data: input }),
   });
 
   if (mutation.isSuccess) {
