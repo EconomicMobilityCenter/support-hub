@@ -9,7 +9,6 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { z } from "zod";
-import { fallback } from "@tanstack/zod-adapter";
 import { retainSearchParams } from "@tanstack/react-router";
 import { SiteHeader } from "../components/site-header";
 
@@ -77,10 +76,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  validateSearch: z.object({
-    org: fallback(z.string().max(200).optional(), undefined),
-    product: fallback(z.string().max(200).optional(), undefined),
-  }),
+  validateSearch: (search: Record<string, unknown>) => {
+    const schema = z.object({
+      org: z.string().max(200).optional(),
+      product: z.string().max(200).optional(),
+    });
+    const result = schema.safeParse(search);
+    return result.success ? result.data : {};
+  },
   search: {
     middlewares: [retainSearchParams(["org", "product"])],
   },
