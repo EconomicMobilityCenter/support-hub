@@ -4,8 +4,9 @@ import { useOrg } from "@/hooks/use-org";
 export function SiteHeader() {
   const { org, orgId, isLoading } = useOrg();
 
-  const navClass = "text-sm text-muted-foreground hover:text-foreground transition-colors";
-  const activeClass = "text-sm font-medium text-foreground";
+  const navClass =
+    "text-sm font-semibold text-[#00005E] hover:text-[#003291] transition-colors";
+  const activeClass = "text-sm font-semibold text-[#003291]";
 
   return (
     <header className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-10">
@@ -50,7 +51,7 @@ export function SiteHeader() {
               <div>Showing public content</div>
             </>
           ) : (
-            <div>Public visitor</div>
+            null
           )}
         </div>
       </div>
