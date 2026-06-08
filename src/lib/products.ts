@@ -5,10 +5,16 @@ export const PRODUCTS = [
   { slug: "budget-pro", name: "Budget Pro" },
   { slug: "forecaster", name: "Forecaster" },
   { slug: "data-cleaner", name: "Data Cleaner" },
+  { slug: "ccmr-weekly-workbook", name: "CCMR Weekly Workbook" },
 ] as const;
 
 export type ProductSlug = (typeof PRODUCTS)[number]["slug"];
 
 export function productName(slug: string): string {
-  return PRODUCTS.find((p) => p.slug === slug)?.name ?? slug;
+  const known = PRODUCTS.find((p) => p.slug === slug)?.name;
+  if (known) return known;
+  return slug
+    .split(/[-_]/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
 }
