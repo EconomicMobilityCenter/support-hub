@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as ReportIssueRouteImport } from './routes/report-issue'
+import { Route as GetHelpRouteImport } from './routes/get-help'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrainingIndexRouteImport } from './routes/training.index'
 
@@ -22,6 +23,11 @@ const SupportRoute = SupportRouteImport.update({
 const ReportIssueRoute = ReportIssueRouteImport.update({
   id: '/report-issue',
   path: '/report-issue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GetHelpRoute = GetHelpRouteImport.update({
+  id: '/get-help',
+  path: '/get-help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -37,12 +43,14 @@ const TrainingIndexRoute = TrainingIndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/get-help': typeof GetHelpRoute
   '/report-issue': typeof ReportIssueRoute
   '/support': typeof SupportRoute
   '/training/': typeof TrainingIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/get-help': typeof GetHelpRoute
   '/report-issue': typeof ReportIssueRoute
   '/support': typeof SupportRoute
   '/training': typeof TrainingIndexRoute
@@ -50,20 +58,28 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/get-help': typeof GetHelpRoute
   '/report-issue': typeof ReportIssueRoute
   '/support': typeof SupportRoute
   '/training/': typeof TrainingIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/report-issue' | '/support' | '/training/'
+  fullPaths: '/' | '/get-help' | '/report-issue' | '/support' | '/training/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/report-issue' | '/support' | '/training'
-  id: '__root__' | '/' | '/report-issue' | '/support' | '/training/'
+  to: '/' | '/get-help' | '/report-issue' | '/support' | '/training'
+  id:
+    | '__root__'
+    | '/'
+    | '/get-help'
+    | '/report-issue'
+    | '/support'
+    | '/training/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GetHelpRoute: typeof GetHelpRoute
   ReportIssueRoute: typeof ReportIssueRoute
   SupportRoute: typeof SupportRoute
   TrainingIndexRoute: typeof TrainingIndexRoute
@@ -85,6 +101,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportIssueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/get-help': {
+      id: '/get-help'
+      path: '/get-help'
+      fullPath: '/get-help'
+      preLoaderRoute: typeof GetHelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -104,6 +127,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GetHelpRoute: GetHelpRoute,
   ReportIssueRoute: ReportIssueRoute,
   SupportRoute: SupportRoute,
   TrainingIndexRoute: TrainingIndexRoute,
@@ -111,3 +135,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
