@@ -17,6 +17,9 @@ export type ContentItem = {
 export type OrgConfig = {
   id: string;
   name: string;
+  products?: string[];
+  contactName?: string;
+  contactEmail?: string;
 };
 
 export type ContentBundle = {

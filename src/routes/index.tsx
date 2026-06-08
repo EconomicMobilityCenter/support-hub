@@ -14,7 +14,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { org, orgId } = useOrg();
-  const products = org?.products ?? [];
+  const products: string[] = org?.products ?? [];
 
   return (
     <div>
