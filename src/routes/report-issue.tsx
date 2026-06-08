@@ -4,7 +4,7 @@ import { SubmissionForm } from "@/components/submission-form";
 export const Route = createFileRoute("/report-issue")({
   head: () => ({
     meta: [
-      { title: "Report an issue — Support Center" },
+      { title: "Report an issue — EMC Support" },
       { name: "description", content: "Report a bug or unexpected behavior in our products." },
     ],
   }),

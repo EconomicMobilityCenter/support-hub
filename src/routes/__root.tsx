@@ -91,9 +91,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Support Center" },
+      { title: "EMC Support" },
       { name: "description", content: "Training, support, and issue reporting for our Excel products." },
-      { property: "og:title", content: "Support Center" },
+      { property: "og:title", content: "EMC Support" },
       { property: "og:description", content: "Training, support, and issue reporting for our Excel products." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

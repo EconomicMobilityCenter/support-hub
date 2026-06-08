@@ -5,7 +5,7 @@ import { productName } from "@/lib/products";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Support Center" },
+      { title: "EMC Support" },
       { name: "description", content: "Training, support, and issue reporting for our Excel products." },
     ],
   }),
