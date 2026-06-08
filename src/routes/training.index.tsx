@@ -75,7 +75,7 @@ function TrainingIndex() {
   }, [data.items, orgId]);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12 space-y-6">
+    <div className="mx-auto max-w-6xl px-6 py-12 space-y-6">
       <header className="space-y-2">
         <h1 className="text-3xl font-extrabold tracking-tight text-[#00005c]">Training</h1>
       </header>
