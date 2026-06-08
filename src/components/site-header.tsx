@@ -25,18 +25,11 @@ export function SiteHeader() {
             Training
           </Link>
           <Link
-            to="/report-issue"
+            to="/get-help"
             className={navClass}
             activeProps={{ className: activeClass }}
           >
-            Report an issue
-          </Link>
-          <Link
-            to="/support"
-            className={navClass}
-            activeProps={{ className: activeClass }}
-          >
-            Get support
+            Get Help
           </Link>
         </nav>
         <div className="text-right text-xs text-muted-foreground min-w-[120px]">

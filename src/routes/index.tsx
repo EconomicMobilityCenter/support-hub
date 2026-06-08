@@ -34,10 +34,9 @@ function Index() {
       </section>
 
       <div className="mx-auto max-w-3xl px-6 py-12 space-y-10">
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2">
         <Tile to="/training" title="Training" desc="Step-by-step guides for each product." />
-        <Tile to="/report-issue" title="Report an issue" desc="Tell us what's broken." />
-        <Tile to="/support" title="Get support" desc="Questions, how-tos, account requests." />
+        <Tile to="/get-help" title="Get Help" desc="Ask a question or report an issue." />
       </section>
 
       {org && (
@@ -68,7 +67,7 @@ function Index() {
   );
 }
 
-function Tile({ to, title, desc }: { to: "/training" | "/report-issue" | "/support"; title: string; desc: string }) {
+function Tile({ to, title, desc }: { to: "/training" | "/get-help"; title: string; desc: string }) {
   return (
     <Link
       to={to}
