@@ -13,7 +13,6 @@ import { Route as SupportRouteImport } from './routes/support'
 import { Route as ReportIssueRouteImport } from './routes/report-issue'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TrainingIndexRouteImport } from './routes/training.index'
-import { Route as TrainingSlugRouteImport } from './routes/training.$slug'
 
 const SupportRoute = SupportRouteImport.update({
   id: '/support',
@@ -35,24 +34,17 @@ const TrainingIndexRoute = TrainingIndexRouteImport.update({
   path: '/training/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TrainingSlugRoute = TrainingSlugRouteImport.update({
-  id: '/training/$slug',
-  path: '/training/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/report-issue': typeof ReportIssueRoute
   '/support': typeof SupportRoute
-  '/training/$slug': typeof TrainingSlugRoute
   '/training/': typeof TrainingIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/report-issue': typeof ReportIssueRoute
   '/support': typeof SupportRoute
-  '/training/$slug': typeof TrainingSlugRoute
   '/training': typeof TrainingIndexRoute
 }
 export interface FileRoutesById {
@@ -60,33 +52,20 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/report-issue': typeof ReportIssueRoute
   '/support': typeof SupportRoute
-  '/training/$slug': typeof TrainingSlugRoute
   '/training/': typeof TrainingIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/report-issue'
-    | '/support'
-    | '/training/$slug'
-    | '/training/'
+  fullPaths: '/' | '/report-issue' | '/support' | '/training/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/report-issue' | '/support' | '/training/$slug' | '/training'
-  id:
-    | '__root__'
-    | '/'
-    | '/report-issue'
-    | '/support'
-    | '/training/$slug'
-    | '/training/'
+  to: '/' | '/report-issue' | '/support' | '/training'
+  id: '__root__' | '/' | '/report-issue' | '/support' | '/training/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ReportIssueRoute: typeof ReportIssueRoute
   SupportRoute: typeof SupportRoute
-  TrainingSlugRoute: typeof TrainingSlugRoute
   TrainingIndexRoute: typeof TrainingIndexRoute
 }
 
@@ -120,13 +99,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrainingIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/training/$slug': {
-      id: '/training/$slug'
-      path: '/training/$slug'
-      fullPath: '/training/$slug'
-      preLoaderRoute: typeof TrainingSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -134,9 +106,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ReportIssueRoute: ReportIssueRoute,
   SupportRoute: SupportRoute,
-  TrainingSlugRoute: TrainingSlugRoute,
   TrainingIndexRoute: TrainingIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
