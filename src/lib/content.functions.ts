@@ -28,7 +28,7 @@ export type ContentBundle = {
   error?: string;
 };
 
-const REPO = "EconomicMobilityCenter/support-hub";
+const REPO = "EconomicMobilityCenter/EMC-Support-Resources";
 const BRANCH = "main";
 const TTL_MS = 10 * 60 * 1000;
 
@@ -69,26 +69,32 @@ async function fetchBundle(): Promise<ContentBundle> {
 
   try {
     const listRes = await fetch(
-      `https://api.github.com/repos/${REPO}/contents/content?ref=${BRANCH}`,
+      `https://api.github.com/repos/${REPO}/contents?ref=${BRANCH}`,
       { headers },
     );
     if (!listRes.ok) {
       return { items: [], orgs: {}, error: `Content list ${listRes.status}` };
     }
     const list = (await listRes.json()) as Array<{ name: string; type: string }>;
+    const SKIP = new Set(["README.md", "orgs.json"]);
     const mdFiles = Array.isArray(list)
-      ? list.filter((e) => e.type === "file" && e.name.endsWith(".md"))
+      ? list.filter(
+          (e) =>
+            e.type === "file" &&
+            !SKIP.has(e.name) &&
+            (e.name.endsWith(".md") || e.name === "ccmr-faqs-md"),
+        )
       : [];
 
     const items: ContentItem[] = [];
     await Promise.all(
       mdFiles.map(async (f) => {
         const r = await fetch(
-          `https://raw.githubusercontent.com/${REPO}/${BRANCH}/content/${f.name}`,
+          `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${f.name}`,
         );
         if (!r.ok) return;
         const raw = await r.text();
-        const slug = f.name.replace(/\.md$/, "");
+        const slug = f.name.replace(/\.md$/, "").replace(/-md$/, "");
         const item = parseFrontmatter(raw, slug);
         if (item) items.push(item);
       }),
@@ -96,7 +102,7 @@ async function fetchBundle(): Promise<ContentBundle> {
 
     let orgs: Record<string, OrgConfig> = {};
     const orgsRes = await fetch(
-      `https://raw.githubusercontent.com/${REPO}/${BRANCH}/config/orgs.json`,
+      `https://raw.githubusercontent.com/${REPO}/${BRANCH}/orgs.json`,
     );
     if (orgsRes.ok) {
       try {
