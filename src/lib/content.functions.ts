@@ -129,9 +129,15 @@ async function fetchBundle(): Promise<ContentBundle> {
         orgs = Object.fromEntries(
           Object.entries(raw).map(([id, v]) => [id, normalizeOrg(id, v)]),
         );
-      } catch {
+      } catch (err) {
+        console.warn(
+          "[content] Failed to parse orgs.json from GitHub — check JSON syntax:",
+          err instanceof Error ? err.message : err,
+        );
         orgs = {};
       }
+    } else {
+      console.warn(`[content] orgs.json fetch failed: ${orgsRes.status}`);
     }
 
     return { items, orgs };
