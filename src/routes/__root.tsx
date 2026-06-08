@@ -92,12 +92,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "EMC Support" },
-      { name: "description", content: "Training, support, and issue reporting for our Excel products." },
+      { name: "description", content: "Training, support, and issue reporting for EMC Partners." },
       { property: "og:title", content: "EMC Support" },
-      { property: "og:description", content: "Training, support, and issue reporting for our Excel products." },
+      { property: "og:description", content: "Training, support, and issue reporting for EMC Partners." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "EMC Support" },
+      { name: "twitter:description", content: "Training, support, and issue reporting for EMC Partners." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3f7b41f4-8a0c-40a9-96eb-9450c5b759d5/id-preview-9df2faf2--c99d82eb-dc05-4bd7-b539-f782095e4f5b.lovable.app-1780949657620.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3f7b41f4-8a0c-40a9-96eb-9450c5b759d5/id-preview-9df2faf2--c99d82eb-dc05-4bd7-b539-f782095e4f5b.lovable.app-1780949657620.png" },
     ],
     links: [
       {
