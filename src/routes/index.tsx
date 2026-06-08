@@ -17,18 +17,23 @@ function Index() {
   const products = org?.products ?? [];
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12 space-y-10">
-      <section className="space-y-3">
-        <h1 className="text-4xl font-bold tracking-tight">How can we help?</h1>
-        <p className="text-muted-foreground">
-          {org
-            ? `Welcome, ${org.name}. Pick a section below to get started.`
-            : orgId
-              ? "We couldn't identify your organization from this link, so you're seeing the public view."
-              : "Browse training material or contact our team."}
-        </p>
+    <div>
+      <section className="w-full bg-[#C2EBFF] py-20">
+        <div className="mx-auto max-w-3xl px-6 space-y-3 text-center">
+          <h1 className="text-4xl font-extrabold tracking-tight text-[#003291]">
+            How can we help?
+          </h1>
+          <p className="text-muted-foreground">
+            {org
+              ? `Welcome, ${org.name}. Pick a section below to get started.`
+              : orgId
+                ? "We couldn't identify your organization from this link, so you're seeing the public view."
+                : "Browse training material or contact our team."}
+          </p>
+        </div>
       </section>
 
+      <div className="mx-auto max-w-3xl px-6 py-12 space-y-10">
       <section className="grid gap-4 sm:grid-cols-3">
         <Tile to="/training" title="Training" desc="Step-by-step guides for each product." />
         <Tile to="/report-issue" title="Report an issue" desc="Tell us what's broken." />
@@ -58,6 +63,7 @@ function Index() {
           )}
         </section>
       )}
+      </div>
     </div>
   );
 }
