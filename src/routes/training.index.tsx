@@ -6,7 +6,7 @@ import { productName } from "@/lib/products";
 export const Route = createFileRoute("/training/")({
   head: () => ({
     meta: [
-      { title: "Training — Support Center" },
+      { title: "Training — EMC Support" },
       { name: "description", content: "Guides and walkthroughs for your products." },
     ],
   }),

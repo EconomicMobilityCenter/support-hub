@@ -10,8 +10,8 @@ export function SiteHeader() {
   return (
     <header className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-10">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-6 py-4">
-        <Link to="/" className="font-semibold tracking-tight">
-          Support Center
+        <Link to="/" className="tracking-tight active font-sans font-bold text-[#00005c]">
+          EMC Support
         </Link>
         <nav className="flex items-center gap-5">
           <Link

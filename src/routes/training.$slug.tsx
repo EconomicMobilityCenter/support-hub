@@ -12,7 +12,7 @@ export const Route = createFileRoute("/training/$slug")({
     loaderData
       ? {
           meta: [
-            { title: `${loaderData.article.title} — Support Center` },
+            { title: `${loaderData.article.title} — EMC Support` },
             { name: "description", content: loaderData.article.description },
           ],
         }
