@@ -16,38 +16,27 @@ export function SiteHeader() {
           <img src={emcLogo.url} alt="Economic Mobility Center" className="h-10 w-auto" />
           <span>EMC Support</span>
         </Link>
-        <nav className="flex items-center gap-5">
-          <Link
-            to="/training"
-            className={navClass}
-            activeProps={{ className: activeClass }}
-          >
-            Training
-          </Link>
-          <Link
-            to="/get-help"
-            className={navClass}
-            activeProps={{ className: activeClass }}
-          >
-            Get Help
-          </Link>
-        </nav>
-        <div className="text-right text-xs text-muted-foreground min-w-[120px]">
-          {isLoading ? (
-            "Loading…"
-          ) : org ? (
-            <>
-              <div className="text-foreground font-medium">{org.name}</div>
-              <div>Signed-in via link</div>
-            </>
-          ) : orgId ? (
-            <>
-              <div className="text-foreground">Unknown org</div>
-              <div>Showing public content</div>
-            </>
-          ) : (
-            null
-          )}
+        <div className="flex items-center gap-6">
+          <nav className="flex items-center gap-5">
+            <Link to="/training" className={navClass} activeProps={{ className: activeClass }}>
+              Training
+            </Link>
+            <Link to="/get-help" className={navClass} activeProps={{ className: activeClass }}>
+              Get Help
+            </Link>
+          </nav>
+          <div className="text-right text-xs text-muted-foreground min-w-[120px]">
+            {isLoading ? (
+              "Loading…"
+            ) : org ? (
+              <>
+                <div className="text-foreground font-medium">{org.name}</div>
+                <div>Signed-in via link</div>
+              </>
+            ) : (
+              <div className="text-foreground font-medium">Public user</div>
+            )}
+          </div>
         </div>
       </div>
     </header>
