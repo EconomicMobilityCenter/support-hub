@@ -29,7 +29,7 @@ export const submitForm = createServerFn({ method: "POST" })
         contact_name: data.contactName,
         contact_email: data.contactEmail,
         summary: data.summary,
-        payload: data.details,
+        payload: data.details as Record<string, unknown> as never,
       })
       .select("id")
       .single();
