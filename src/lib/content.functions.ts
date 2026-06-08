@@ -17,7 +17,6 @@ export type ContentItem = {
 export type OrgConfig = {
   id: string;
   name: string;
-  [key: string]: unknown;
 };
 
 export type ContentBundle = {
