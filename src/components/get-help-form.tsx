@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useOrg } from "@/hooks/use-org";
-import { PRODUCTS } from "@/lib/products";
+import { PRODUCTS, productName } from "@/lib/products";
 import { submitForm, type SubmissionInput } from "@/lib/submissions.functions";
 
 type HelpType = "A" | "B" | "C" | "D";
@@ -90,8 +90,8 @@ export function GetHelpForm() {
 
   const orgKnown = !!org;
   const availableProducts = orgKnown
-    ? PRODUCTS.filter((p) => org!.products?.includes(p.slug))
-    : PRODUCTS;
+    ? (org!.products ?? []).map((slug) => ({ slug, name: productName(slug) }))
+    : PRODUCTS.map((p) => ({ slug: p.slug, name: p.name }));
 
   // Basic info
   const [contactName, setContactName] = useState(org?.contactName ?? "");
