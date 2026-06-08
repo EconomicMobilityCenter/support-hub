@@ -1,28 +1,16 @@
 import { useSearch } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { getOrg, type Org } from "@/lib/org.functions";
+import { useContent } from "@/hooks/use-content";
+import type { OrgConfig } from "@/lib/content.functions";
 
 export function useOrg(): {
-  orgId: string | null;
-  org: Org | null;
+  orgId: string;
+  org: OrgConfig | null;
   isLoading: boolean;
 } {
-  // strict: false so this hook works on any route.
   const search = useSearch({ strict: false }) as { org?: string };
-  const orgId = search.org ?? null;
-  const fetchOrg = useServerFn(getOrg);
-
-  const query = useQuery({
-    queryKey: ["org", orgId],
-    queryFn: () => fetchOrg({ data: { orgId: orgId! } }),
-    enabled: !!orgId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  return {
-    orgId,
-    org: query.data?.org ?? null,
-    isLoading: !!orgId && query.isLoading,
-  };
+  const requested = search.org ?? null;
+  const { data, isLoading } = useContent();
+  const org = requested ? data.orgs[requested] ?? null : null;
+  const orgId = org ? requested! : "public";
+  return { orgId, org, isLoading };
 }
