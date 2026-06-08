@@ -49,20 +49,6 @@ function ArticleItem({ item }: { item: ContentItem }) {
   );
 }
 
-function LinkItem({ item }: { item: ContentItem }) {
-  if (!item.link) return <div className="text-muted-foreground">{item.title}</div>;
-  return (
-    <a
-      href={item.link}
-      target="_blank"
-      rel="noreferrer noopener"
-      className="text-[#003291] hover:underline"
-    >
-      {item.title}
-    </a>
-  );
-}
-
 function TrainingIndex() {
   const { orgId } = useOrg();
   const { data, isLoading, error } = useContent();
@@ -118,11 +104,7 @@ function TrainingIndex() {
               <ul className="space-y-3">
                 {g.items.map((it) => (
                   <li key={it.slug}>
-                    {it.type === "article" ? (
-                      <ArticleItem item={it} />
-                    ) : (
-                      <LinkItem item={it} />
-                    )}
+                    <ArticleItem item={it} />
                   </li>
                 ))}
               </ul>
