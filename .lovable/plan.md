@@ -1,9 +1,20 @@
-## Header layout tweak
+## Problem
 
-**File: `src/components/site-header.tsx`**
+`ccmr-intro-video.md` contains a Vimeo `<iframe>` embed in its body. The training renderer pipes the markdown HTML through DOMPurify with default settings, which strips all `<iframe>` tags (and the `<script>` tag). Result: the expander opens but the embed area is empty.
 
-1. Restructure the header flex container so the logo+brand stays on the left, and the nav links (`Training`, `Get Help`) move to the right, sitting immediately to the left of the user info block.
-   - Replace the current three-column `justify-between` layout with: left = logo/brand; right = a single flex group containing nav links + user info, separated by a small gap (or a thin vertical divider).
-2. Update the user info block: when `orgId` is set but `org` is null (unknown org), render "Public user" instead of "Unknown org / Showing public content". When no `orgId` at all, also show "Public user" (currently shows nothing) — to confirm: see question below.
+## Fix
 
-No other files change. No business logic changes.
+Update `renderMarkdown` in `src/routes/training.index.tsx` so DOMPurify keeps safe video iframes while still blocking everything else.
+
+Configure DOMPurify with:
+- `ADD_TAGS: ["iframe"]`
+- `ADD_ATTR: ["allow", "allowfullscreen", "frameborder", "scrolling", "referrerpolicy", "title"]`
+- A `uponSanitizeElement` hook that drops any `<iframe>` whose `src` host is not on an allowlist: `player.vimeo.com`, `www.youtube.com`, `youtube.com`, `www.youtube-nocookie.com`, `youtube-nocookie.com`.
+- Leave `<script>` blocked (default behavior) — the Vimeo `player.js` script in the markdown is not needed for playback.
+
+Also add a small `.prose iframe` style (or inline wrapper rule) so embeds fill the available width with a 16:9 aspect ratio, since the source uses a `padding-top` wrapper that already handles that — no extra CSS needed beyond making sure `iframe` isn't constrained by `prose`.
+
+## Out of scope
+
+- No changes to the markdown file format or to how non-video items render.
+- No change to `type: "video"` handling beyond what's needed for embedded HTML to display; future work could auto-render from the `link` field, but the user's current file uses an inline iframe so the sanitizer fix is sufficient.
