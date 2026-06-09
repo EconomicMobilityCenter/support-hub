@@ -1,19 +1,35 @@
-# Fix markdown formatting in Training dropdowns
+## Goal
 
-## Problem
-`src/routes/training.index.tsx` renders each article body with `marked` + DOMPurify into a `<div class="prose prose-sm">`. The `prose` classes come from the Tailwind Typography plugin, which is **not installed or registered** in this project. Result: headings, bullet lists, and paragraphs from the GitHub `.md` files all collapse into an unstyled wall of text.
+Replace the nested collapsible-in-collapsible pattern on `/training` with a cleaner list + modal pattern. Articles open in a centered, scrollable dialog instead of expanding inline.
 
-## Fix
-1. Install `@tailwindcss/typography` as a dev dependency (`bun add -d @tailwindcss/typography`).
-2. Register it in `src/styles.css` using the Tailwind v4 syntax: add `@plugin "@tailwindcss/typography";` near the top with the other Tailwind directives.
-3. Keep the existing `prose prose-sm max-w-none` className on the article body container so headings, lists, links, and code render with proper spacing/bullets.
-4. (Light polish) Tighten the prose color to match the page palette by adding a small style override in `styles.css` so headings use the same navy as the rest of training (e.g. `.prose :where(h1,h2,h3,h4):not(:where([class~="not-prose"] *)) { color: #00005c; }`).
+## Current behavior
 
-No content/business logic changes — purely presentation.
+`src/routes/training.index.tsx` renders each group as a `Collapsible`, and inside each group every article is an `ArticleItem` with its own toggle that expands the markdown body inline. Result: once a few are open the page is a wall of expanded content with no obvious way to close them.
 
-## Files
-- `package.json` (added dep via bun)
-- `src/styles.css` (register plugin + minor color override)
+## Proposed behavior
 
-## Verification
-Open `/training?org=garland-isd`, expand the One-page orientation and FAQ items, and confirm headings, bullet lists, and paragraph spacing render the same way the files preview on GitHub.
+- Groups stay as `Collapsible` sections (one level only) so users can scan categories.  
+- if there are less than 5 collapsible groups they should be expanded upon page load
+- Inside a group, each article is a plain link/button. Clicking it opens a `Dialog` modal.
+- Modal contains:
+  - Article title as `DialogTitle`
+  - Scrollable body (max-height ~80vh, `overflow-y-auto`) with the same `prose prose-sm max-w-none` markdown rendering already in use
+  - Clear close affordance (the built-in `X` in `DialogContent` plus click-outside / Esc)
+- Only one article open at a time → much less visual noise, obvious how to dismiss.
+
+## Implementation details (single file: `src/routes/training.index.tsx`)
+
+1. Remove the `ArticleItem` inline-expand component.
+2. Add local state for the currently-open article: `const [active, setActive] = useState<ContentItem | null>(null)`.
+3. Replace each `<li>` content with a button that calls `setActive(it)`; keep the existing navy link styling.
+4. Render a single `<Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>` at the bottom of the component.
+  - `DialogContent` with `max-w-3xl max-h-[85vh] flex flex-col`
+  - `DialogHeader` → `DialogTitle` with `active?.title`
+  - Body: `<div className="overflow-y-auto pr-2"><div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={...} /></div>`
+  - Markdown rendering uses the existing `renderMarkdown` helper (marked + DOMPurify with the iframe allowlist) — unchanged.
+5. Keep the group-level `Collapsible` behavior exactly as-is.
+
+## Out of scope
+
+- No content changes, no routing changes, no business logic, no email/auth work.
+- FAQ page is not touched in this step; if it has the same issue we can mirror the pattern in a follow-up — confirm if you want it included now.

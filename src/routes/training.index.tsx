@@ -8,6 +8,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useOrg } from "@/hooks/use-org";
 import { useContent } from "@/hooks/use-content";
 import type { ContentItem } from "@/lib/content.functions";
@@ -57,31 +63,14 @@ function renderMarkdown(body: string): string {
   });
 }
 
-function ArticleItem({ item }: { item: ContentItem }) {
-  const [open, setOpen] = useState(false);
-  const html = useMemo(() => (open ? renderMarkdown(item.body) : ""), [open, item.body]);
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="text-left text-[#003291] hover:underline"
-      >
-        {item.title}
-      </button>
-      {open && (
-        <div
-          className="prose prose-sm mt-2 max-w-none"
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
-      )}
-    </div>
-  );
-}
-
 function TrainingIndex() {
   const { orgId } = useOrg();
   const { data, isLoading, error } = useContent();
+  const [active, setActive] = useState<ContentItem | null>(null);
+  const activeHtml = useMemo(
+    () => (active ? renderMarkdown(active.body) : ""),
+    [active],
+  );
 
   const groups = useMemo(() => {
     const visible = data.items.filter(
@@ -104,6 +93,8 @@ function TrainingIndex() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [data.items, orgId]);
 
+  const defaultOpen = groups.length > 0 && groups.length < 5;
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-12 space-y-6">
       <header className="space-y-2">
@@ -124,6 +115,7 @@ function TrainingIndex() {
         {groups.map((g) => (
           <Collapsible
             key={g.name}
+            defaultOpen={defaultOpen}
             className="rounded-lg border border-border bg-card"
           >
             <CollapsibleTrigger className="group flex w-full items-center justify-between px-5 py-4 text-left">
@@ -134,7 +126,13 @@ function TrainingIndex() {
               <ul className="space-y-3">
                 {g.items.map((it) => (
                   <li key={it.slug}>
-                    <ArticleItem item={it} />
+                    <button
+                      type="button"
+                      onClick={() => setActive(it)}
+                      className="text-left text-[#003291] hover:underline"
+                    >
+                      {it.title}
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -142,6 +140,20 @@ function TrainingIndex() {
           </Collapsible>
         ))}
       </div>
+
+      <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-[#00005c]">{active?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto pr-2">
+            <div
+              className="prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: activeHtml }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
