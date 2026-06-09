@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -150,4 +151,8 @@
   h1, h2, h3, h4, h5, h6 {
     font-weight: 800;
   }
+}
+
+.prose :where(h1, h2, h3, h4):not(:where([class~="not-prose"] *)) {
+  color: #00005c;
 }

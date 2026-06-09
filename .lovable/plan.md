@@ -1,52 +1,19 @@
-# Plan: Send Get Help submissions via email
+# Fix markdown formatting in Training dropdowns
 
-## Goal
-Every Get Help form submission emails **support@economicmobilitycenter.org**, keeping the existing per-path subject prefixes, [URGENT] tag for blocking/urgent issues, and structured body sections (Contact / Summary / Details).
+## Problem
+`src/routes/training.index.tsx` renders each article body with `marked` + DOMPurify into a `<div class="prose prose-sm">`. The `prose` classes come from the Tailwind Typography plugin, which is **not installed or registered** in this project. Result: headings, bullet lists, and paragraphs from the GitHub `.md` files all collapse into an unstyled wall of text.
 
-## Step 1 — Set up email sending domain
-Lovable Emails requires a verified sender domain. No domain is configured yet, so the first step is to set one up (e.g. `notify.economicmobilitycenter.org`). I'll surface the email setup dialog so you can add DNS records at your registrar.
+## Fix
+1. Install `@tailwindcss/typography` as a dev dependency (`bun add -d @tailwindcss/typography`).
+2. Register it in `src/styles.css` using the Tailwind v4 syntax: add `@plugin "@tailwindcss/typography";` near the top with the other Tailwind directives.
+3. Keep the existing `prose prose-sm max-w-none` className on the article body container so headings, lists, links, and code render with proper spacing/bullets.
+4. (Light polish) Tighten the prose color to match the page palette by adding a small style override in `styles.css` so headings use the same navy as the rest of training (e.g. `.prose :where(h1,h2,h3,h4):not(:where([class~="not-prose"] *)) { color: #00005c; }`).
 
-After the domain is added, Lovable will:
-- Create email infrastructure (queue, send log, suppression list, cron processor)
-- Scaffold the app-email send route and an example template
+No content/business logic changes — purely presentation.
 
-DNS verification can take up to ~72 hours, but I can wire the code immediately — emails will start flowing once DNS is active.
+## Files
+- `package.json` (added dep via bun)
+- `src/styles.css` (register plugin + minor color override)
 
-## Step 2 — Create the support-submission email template
-A new React Email template `support-submission` in `src/lib/email-templates/`:
-- Subject: built dynamically per submission, matching the current logic
-  - `[EMC Support] <Path Label> — <summary first 80 chars>`
-  - Prefixed with `[URGENT]` when helpType=B, or helpType=C with severity=urgent/blocking
-- Body sections (same as today's `buildEmailBody`):
-  - Submitted timestamp + Path label
-  - Contact: name, email, partner, campus, product, severity
-  - Summary
-  - Details (expectedDeliveryDate, neededByDate, whatHappened, stepsToReproduce, attachmentLinks)
-- Registered in `src/lib/email-templates/registry.ts`
-
-## Step 3 — Update `submitForm` to send the email
-In `src/lib/submissions.functions.ts`:
-- Keep the Supabase insert as the source of truth
-- After insert, call the internal send route with:
-  - `templateName: "support-submission"`
-  - `recipientEmail: "support@economicmobilitycenter.org"`
-  - `idempotencyKey: support-<submission id>`
-  - `templateData`: subject, path label, urgent flag, and all the existing fields
-- Remove the `data@economicmobilitycenter.org` routing — all paths go to support@
-- Keep console logging as a fallback if the send fails (non-blocking)
-
-## Step 4 — Verify
-- Submit a test form on each of the 4 help paths
-- Confirm rows appear in the email send log with `sent` status
-- Confirm the inbox receives them with correct subjects (including [URGENT] for B + urgent C)
-
-## What stays the same
-- Form UI and fields
-- Confirmation dialog copy shown to the user
-- Supabase `support_submissions` table and payload shape
-- Per-path subject prefixes and body section structure
-
-## Out of scope
-- Switching to a third-party email provider (Resend/SendGrid/etc.)
-- Sending a copy/confirmation back to the submitter (can add later if you want)
-- Changing the form fields or validation
+## Verification
+Open `/training?org=garland-isd`, expand the One-page orientation and FAQ items, and confirm headings, bullet lists, and paragraph spacing render the same way the files preview on GitHub.
