@@ -24,7 +24,37 @@ export const Route = createFileRoute("/training/")({
 
 function renderMarkdown(body: string): string {
   const html = marked.parse(body, { async: false }) as string;
-  return DOMPurify.sanitize(html);
+  const ALLOWED_IFRAME_HOSTS = new Set([
+    "player.vimeo.com",
+    "www.youtube.com",
+    "youtube.com",
+    "www.youtube-nocookie.com",
+    "youtube-nocookie.com",
+  ]);
+  DOMPurify.removeAllHooks();
+  DOMPurify.addHook("uponSanitizeElement", (node, data) => {
+    if (data.tagName !== "iframe") return;
+    const src = (node as Element).getAttribute("src") ?? "";
+    try {
+      const host = new URL(src).hostname;
+      if (!ALLOWED_IFRAME_HOSTS.has(host)) {
+        (node as Element).remove();
+      }
+    } catch {
+      (node as Element).remove();
+    }
+  });
+  return DOMPurify.sanitize(html, {
+    ADD_TAGS: ["iframe"],
+    ADD_ATTR: [
+      "allow",
+      "allowfullscreen",
+      "frameborder",
+      "scrolling",
+      "referrerpolicy",
+      "title",
+    ],
+  });
 }
 
 function ArticleItem({ item }: { item: ContentItem }) {
