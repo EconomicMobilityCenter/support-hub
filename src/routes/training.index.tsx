@@ -93,52 +93,82 @@ function TrainingIndex() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [data.items, orgId]);
 
-  const defaultOpen = groups.length > 0 && groups.length < 5;
-
   return (
-    <div className="mx-auto max-w-6xl px-6 py-12 space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-extrabold tracking-tight text-[#00005c]">Training</h1>
-      </header>
-
-      {isLoading && <p className="text-muted-foreground">Loading training material…</p>}
-      {error && !isLoading && (
-        <p className="text-sm text-destructive">Couldn't load content: {error}</p>
-      )}
-      {!isLoading && !error && groups.length === 0 && (
-        <p className="text-muted-foreground">
-          No training material available for your organization yet.
-        </p>
-      )}
-
-      <div className="space-y-3">
-        {groups.map((g) => (
-          <Collapsible
-            key={g.name}
-            defaultOpen={defaultOpen}
-            className="rounded-lg border border-border bg-card"
+    <div className="min-h-screen" style={{ backgroundColor: "#F4F5F7" }}>
+      <div className="mx-auto max-w-6xl px-6 py-12 space-y-6">
+        <header className="space-y-1">
+          <h1
+            className="text-[22px] font-medium tracking-tight"
+            style={{ color: "#042C53" }}
           >
-            <CollapsibleTrigger className="group flex w-full items-center justify-between px-5 py-4 text-left">
-              <span className="font-semibold text-[#00005c]">{g.name}</span>
-              <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="border-t border-border px-5 py-4">
-              <ul className="space-y-3">
-                {g.items.map((it) => (
-                  <li key={it.slug}>
-                    <button
-                      type="button"
-                      onClick={() => setActive(it)}
-                      className="text-left text-[#003291] hover:underline"
+            Training
+          </h1>
+          <p className="text-sm" style={{ color: "#6B6F76" }}>
+            Step-by-step guides and videos for each product.
+          </p>
+        </header>
+
+        {isLoading && (
+          <p className="text-sm" style={{ color: "#6B6F76" }}>
+            Loading training material…
+          </p>
+        )}
+        {error && !isLoading && (
+          <p className="text-sm text-destructive">Couldn't load content: {error}</p>
+        )}
+        {!isLoading && !error && groups.length === 0 && (
+          <p className="text-sm" style={{ color: "#6B6F76" }}>
+            No training material available for your organization yet.
+          </p>
+        )}
+
+        <div className="space-y-3">
+          {groups.map((g) => (
+            <Collapsible
+              key={g.name}
+              defaultOpen={g.items.length < 5}
+              className="rounded-xl border bg-card overflow-hidden"
+              style={{ borderColor: "#E2E4E8" }}
+            >
+              <CollapsibleTrigger className="group flex w-full items-center justify-between px-5 py-4 text-left">
+                <span
+                  className="text-[15px] font-medium"
+                  style={{ color: "#1A1A1A" }}
+                >
+                  {g.name}
+                </span>
+                <ChevronDown
+                  className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180"
+                  style={{ color: "#8A8E96" }}
+                />
+              </CollapsibleTrigger>
+              <CollapsibleContent
+                className="border-t"
+                style={{ borderColor: "#F0F1F3" }}
+              >
+                <ul>
+                  {g.items.map((it, idx) => (
+                    <li
+                      key={it.slug}
+                      style={{
+                        borderTop: idx === 0 ? "none" : "1px solid #F0F1F3",
+                      }}
                     >
-                      {it.title}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </CollapsibleContent>
-          </Collapsible>
-        ))}
+                      <button
+                        type="button"
+                        onClick={() => setActive(it)}
+                        className="w-full text-left py-3 transition-colors hover:bg-[#F4F5F7] text-sm"
+                        style={{ color: "#1A1A1A", paddingLeft: 18, paddingRight: 18 }}
+                      >
+                        {it.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            </Collapsible>
+          ))}
+        </div>
       </div>
 
       <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>

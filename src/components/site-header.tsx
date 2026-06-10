@@ -8,8 +8,9 @@ export function SiteHeader() {
   const requestedOrg = search.org ?? null;
 
   const navClass =
-    "text-sm font-medium transition-colors hover:text-white";
-  const activeClass = "text-sm font-medium text-white";
+    "text-sm font-medium transition-colors hover:text-white pb-1 border-b-2 border-transparent";
+  const activeClass =
+    "text-sm font-medium text-white pb-1 border-b-2";
 
   return (
     <header className="sticky top-0 z-10" style={{ backgroundColor: "#042C53" }}>
@@ -28,7 +29,10 @@ export function SiteHeader() {
               to="/training"
               className={navClass}
               style={{ color: "#B5D4F4" }}
-              activeProps={{ className: activeClass }}
+              activeProps={{
+                className: activeClass,
+                style: { color: "#FFFFFF", borderColor: "#85B7EB" },
+              }}
             >
               Training
             </Link>
@@ -36,7 +40,10 @@ export function SiteHeader() {
               to="/get-help"
               className={navClass}
               style={{ color: "#B5D4F4" }}
-              activeProps={{ className: activeClass }}
+              activeProps={{
+                className: activeClass,
+                style: { color: "#FFFFFF", borderColor: "#85B7EB" },
+              }}
             >
               Get help
             </Link>
