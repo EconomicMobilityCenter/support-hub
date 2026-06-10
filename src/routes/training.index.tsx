@@ -98,7 +98,7 @@ function TrainingIndex() {
       <div className="mx-auto max-w-6xl px-6 py-12 space-y-6">
         <header className="space-y-1">
           <h1
-            className="text-[22px] font-medium tracking-tight"
+            className="text-3xl font-extrabold tracking-tight"
             style={{ color: "#042C53" }}
           >
             Training
@@ -132,8 +132,8 @@ function TrainingIndex() {
             >
               <CollapsibleTrigger className="group flex w-full items-center justify-between px-5 py-4 text-left">
                 <span
-                  className="text-[15px] font-medium"
-                  style={{ color: "#1A1A1A" }}
+                  className="text-base font-semibold"
+                  style={{ color: "#042C53" }}
                 >
                   {g.name}
                 </span>
@@ -157,8 +157,8 @@ function TrainingIndex() {
                       <button
                         type="button"
                         onClick={() => setActive(it)}
-                        className="w-full text-left py-3 transition-colors hover:bg-[#F4F5F7] text-sm"
-                        style={{ color: "#1A1A1A", paddingLeft: 18, paddingRight: 18 }}
+                        className="w-full text-left py-3 transition-colors hover:bg-[#F4F5F7] text-sm hover:underline"
+                        style={{ color: "#185FA5", paddingLeft: 36, paddingRight: 18 }}
                       >
                         {it.title}
                       </button>
