@@ -132,7 +132,7 @@ function ActionCard({
       >
         {icon}
       </div>
-      <div className="text-base font-medium mb-1" style={{ color: "#1A1A1A" }}>
+      <div className="text-base font-bold mb-1" style={{ color: "#1A1A1A" }}>
         {title}
       </div>
       <div className="text-sm mb-4" style={{ color: "#6B6F76" }}>
