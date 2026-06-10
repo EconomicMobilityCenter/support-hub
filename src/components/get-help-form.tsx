@@ -272,7 +272,7 @@ export function GetHelpForm() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F4F5F7" }}>
-    <div className="mx-auto max-w-3xl px-6 py-12">
+    <div className="mx-auto max-w-6xl px-6 py-12">
       <h1 className="text-3xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>Get help</h1>
       <p className="mt-2 text-sm" style={{ color: "#6B6F76" }}>
         Ask a question, report a missing report, or flag a data issue. We typically reply
