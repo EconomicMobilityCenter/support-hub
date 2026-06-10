@@ -424,14 +424,13 @@ export function GetHelpForm() {
                 <DatePickerField value={expectedDate} onChange={setExpectedDate} />
               </div>
               <div>
-                <label className={labelClass}>How is this affecting your work? *</label>
+                <label className={labelClass}>How is this affecting your work?</label>
                 <select
                   className={inputClass}
                   value={severity ?? ""}
                   onChange={(e) =>
                     setSeverity(e.target.value as SubmissionInput["severity"] | "")
                   }
-                  required
                 >
                   <option value="">Select severity</option>
                   {SEVERITY_OPTIONS.map((o) => (
@@ -440,6 +439,17 @@ export function GetHelpForm() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className={labelClass}>Additional details *</label>
+                <textarea
+                  className={inputClass + " min-h-[120px]"}
+                  value={bComments}
+                  onChange={(e) => setBComments(e.target.value)}
+                  maxLength={5000}
+                  required
+                  placeholder="Anything else that helps us track this down"
+                />
               </div>
             </div>
           )}
@@ -458,23 +468,36 @@ export function GetHelpForm() {
                 />
               </div>
               <div>
-                <label className={labelClass}>What happened / what did you expect? *</label>
-                <textarea
-                  className={inputClass + " min-h-[120px]"}
-                  value={whatHappened}
-                  onChange={(e) => setWhatHappened(e.target.value)}
-                  maxLength={5000}
+                <label className={labelClass}>Date of report *</label>
+                <DatePickerField value={reportDate} onChange={setReportDate} />
+              </div>
+              <div>
+                <label className={labelClass}>Which tab is affected? *</label>
+                <input
+                  className={inputClass}
+                  value={tabAffected}
+                  onChange={(e) => setTabAffected(e.target.value)}
+                  maxLength={200}
                   required
                 />
               </div>
               <div>
-                <label className={labelClass}>Do you have specific steps to reproduce this?</label>
+                <label className={labelClass}>Which section / field is affected? *</label>
+                <input
+                  className={inputClass}
+                  value={sectionAffected}
+                  onChange={(e) => setSectionAffected(e.target.value)}
+                  maxLength={200}
+                  required
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Other comments</label>
                 <textarea
                   className={inputClass + " min-h-[100px]"}
-                  value={steps}
-                  onChange={(e) => setSteps(e.target.value)}
+                  value={cComments}
+                  onChange={(e) => setCComments(e.target.value)}
                   maxLength={5000}
-                  placeholder={"1. Open …\n2. Click …\n3. …"}
                 />
               </div>
               <div>
@@ -496,14 +519,45 @@ export function GetHelpForm() {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Attachment links (screenshots / files)</label>
+                <label className={labelClass}>Attachments (screenshots / documents) *</label>
                 <input
-                  className={inputClass}
-                  value={attachments}
-                  onChange={(e) => setAttachments(e.target.value)}
-                  maxLength={1000}
-                  placeholder="Paste shareable links (Drive, OneDrive, etc.)"
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                  className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+                  onChange={(e) => {
+                    const picked = Array.from(e.target.files ?? []);
+                    const tooBig = picked.find((f) => f.size > 10 * 1024 * 1024);
+                    if (tooBig) {
+                      setError(`"${tooBig.name}" is larger than 10MB.`);
+                      return;
+                    }
+                    const total = [...files, ...picked].reduce((s, f) => s + f.size, 0);
+                    if (total > 25 * 1024 * 1024) {
+                      setError("Total attachments exceed 25MB.");
+                      return;
+                    }
+                    setError(null);
+                    setFiles((prev) => [...prev, ...picked]);
+                    e.target.value = "";
+                  }}
                 />
+                {files.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-sm">
+                    {files.map((f, idx) => (
+                      <li key={`${f.name}-${idx}`} className="flex items-center justify-between rounded border border-border bg-background px-2 py-1">
+                        <span className="truncate">{f.name} <span className="text-muted-foreground">({Math.round(f.size / 1024)} KB)</span></span>
+                        <button
+                          type="button"
+                          className="text-xs text-destructive hover:underline"
+                          onClick={() => setFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           )}
@@ -516,8 +570,8 @@ export function GetHelpForm() {
           </p>
         )}
 
-        <Button type="submit" disabled={mutation.isPending} size="lg">
-          {mutation.isPending ? "Submitting…" : "Submit"}
+        <Button type="submit" disabled={mutation.isPending || uploading} size="lg">
+          {uploading ? "Uploading…" : mutation.isPending ? "Submitting…" : "Submit"}
         </Button>
       </form>
 
