@@ -35,10 +35,10 @@ const HELP_OPTIONS: { value: HelpType; label: string }[] = [
 ];
 
 const SEVERITY_OPTIONS: { value: SubmissionInput["severity"]; label: string }[] = [
-  { value: "nice_to_have", label: "Not blocking — would be nice to fix" },
-  { value: "workaround", label: "Inconvenient but I have a workaround" },
-  { value: "blocking", label: "Blocking me from doing my work" },
-  { value: "urgent", label: "Urgent — blocking my whole team / a deadline" },
+  { value: "nice_to_have", label: "Minor — something looks off, but I can keep working" },
+  { value: "workaround", label: "Moderate — I can work around it for now" },
+  { value: "blocking", label: "Major — I'm stuck on something I need to do" },
+  { value: "urgent", label: "Critical — this is stopping multiple people from working" },
 ];
 
 const inputClass =
@@ -109,7 +109,6 @@ export function GetHelpForm() {
   // B
   const [expectedDate, setExpectedDate] = useState<Date | undefined>();
   const [severity, setSeverity] = useState<SubmissionInput["severity"] | "">("");
-  const [neededByDate, setNeededByDate] = useState<Date | undefined>();
 
   // C
   const [shortSummary, setShortSummary] = useState("");
@@ -172,7 +171,6 @@ export function GetHelpForm() {
       sev = severity;
       summary = `Report missing — expected ${format(expectedDate, "yyyy-MM-dd")}`;
       details.expectedDeliveryDate = format(expectedDate, "yyyy-MM-dd");
-      if (neededByDate) details.neededByDate = format(neededByDate, "yyyy-MM-dd");
     } else if (helpType === "C") {
       if (!shortSummary.trim()) {
         setError("Please provide a short summary.");
@@ -191,7 +189,6 @@ export function GetHelpForm() {
       details.whatHappened = whatHappened.trim();
       if (steps.trim()) details.stepsToReproduce = steps.trim();
       if (attachments.trim()) details.attachmentLinks = attachments.trim();
-      if (neededByDate) details.neededByDate = format(neededByDate, "yyyy-MM-dd");
     }
 
     return {
@@ -385,7 +382,7 @@ export function GetHelpForm() {
                 <DatePickerField value={expectedDate} onChange={setExpectedDate} />
               </div>
               <div>
-                <label className={labelClass}>Is this issue blocking you from certain tasks? *</label>
+                <label className={labelClass}>How is this affecting your work? *</label>
                 <select
                   className={inputClass}
                   value={severity ?? ""}
@@ -401,10 +398,6 @@ export function GetHelpForm() {
                     </option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className={labelClass}>Do you need this data by a specific date?</label>
-                <DatePickerField value={neededByDate} onChange={setNeededByDate} />
               </div>
             </div>
           )}
@@ -443,7 +436,7 @@ export function GetHelpForm() {
                 />
               </div>
               <div>
-                <label className={labelClass}>Is this issue blocking you from certain tasks? *</label>
+                <label className={labelClass}>How is this affecting your work? *</label>
                 <select
                   className={inputClass}
                   value={severity ?? ""}
@@ -459,10 +452,6 @@ export function GetHelpForm() {
                     </option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className={labelClass}>Do you need this data by a specific date?</label>
-                <DatePickerField value={neededByDate} onChange={setNeededByDate} />
               </div>
               <div>
                 <label className={labelClass}>Attachment links (screenshots / files)</label>
