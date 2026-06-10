@@ -268,6 +268,7 @@ export function GetHelpForm() {
       summary,
       severity: sev,
       details: details as Record<string, unknown>,
+      submissionId: (details.submissionId as string | undefined) ?? null,
     };
   }
 
