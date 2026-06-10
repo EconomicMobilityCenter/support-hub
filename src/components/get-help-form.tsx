@@ -93,6 +93,7 @@ export function GetHelpForm() {
   const { org, orgId } = useOrg();
   const search = useSearch({ strict: false }) as { product?: string };
   const submit = useServerFn(submitForm);
+  const createDraft = useServerFn(createDraftSubmission);
   const navigate = useNavigate();
 
   const orgKnown = !!org;
