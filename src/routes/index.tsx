@@ -27,7 +27,7 @@ function Index() {
             {org
               ? `Welcome, ${org.name}. Pick a section below to get started.`
               : orgId
-                ? "We couldn't identify your organization from this link, so you're seeing the public view."
+                ? "Here you can find training guides or submit support requests for help."
                 : "Browse training material or contact our team."}
           </p>
         </div>
