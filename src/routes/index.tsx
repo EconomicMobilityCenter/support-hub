@@ -21,7 +21,7 @@ function Index() {
     <div className="bg-[#F4F5F7] min-h-screen">
       <section className="w-full bg-[#185FA5] pt-16 pb-28">
         <div className="mx-auto max-w-6xl px-6 space-y-2 text-center">
-          <h1 className="text-[22px] font-medium tracking-tight text-white">
+          <h1 className="text-4xl font-extrabold tracking-tight text-white">
             {org
               ? `How can we help, ${org.name}?`
               : orgId
