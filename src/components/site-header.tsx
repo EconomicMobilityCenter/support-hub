@@ -1,6 +1,6 @@
 import { Link, useSearch } from "@tanstack/react-router";
 import { useOrg } from "@/hooks/use-org";
-import emcLogo from "@/assets/emc-logo.webp.asset.json";
+import emcLogo from "@/assets/emc-logo.jpg.asset.json";
 
 export function SiteHeader() {
   const { org, isLoading } = useOrg();
