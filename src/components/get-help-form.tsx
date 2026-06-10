@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/dialog";
 import { useOrg } from "@/hooks/use-org";
 import { PRODUCTS, productName } from "@/lib/products";
-import { submitForm, type SubmissionInput } from "@/lib/submissions.functions";
+import {
+  submitForm,
+  createDraftSubmission,
+  type SubmissionInput,
+} from "@/lib/submissions.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 type HelpType = "A" | "B" | "C" | "D";
