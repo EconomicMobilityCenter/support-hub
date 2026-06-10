@@ -43,8 +43,10 @@ const SEVERITY_OPTIONS: { value: SubmissionInput["severity"]; label: string }[] 
 ];
 
 const inputClass =
-  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
-const labelClass = "block text-sm font-medium mb-1";
+  "w-full rounded-lg border bg-white px-3 py-2 text-sm text-[#1A1A1A] placeholder:text-[#8A8E96] focus:outline-none focus:ring-2 focus:ring-[#185FA5]/40 focus:border-[#185FA5] transition-colors";
+const inputBorder = { borderColor: "#E2E4E8" } as const;
+const labelClass = "block text-[13px] font-medium mb-1.5 text-[#1A1A1A]";
+const reqStar = <span style={{ color: "#A32D2D" }}> *</span>;
 
 function DatePickerField({
   value,
@@ -269,22 +271,26 @@ export function GetHelpForm() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-12">
-      <h1 className="text-3xl font-extrabold tracking-tight text-[#00005c]">Get Help</h1>
-      <p className="mt-2 text-muted-foreground">
+    <div className="min-h-screen" style={{ backgroundColor: "#F4F5F7" }}>
+    <div className="mx-auto max-w-3xl px-6 py-12">
+      <h1 className="text-3xl font-extrabold tracking-tight" style={{ color: "#042C53" }}>Get help</h1>
+      <p className="mt-2 text-sm" style={{ color: "#6B6F76" }}>
         Ask a question, report a missing report, or flag a data issue. We typically reply
         within 1–2 business days.
       </p>
 
       {org && (
-        <div className="mt-4 rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+        <div
+          className="mt-4 rounded-lg border p-3 text-xs"
+          style={{ borderColor: "#E2E4E8", backgroundColor: "#FFFFFF", color: "#6B6F76" }}
+        >
           Submitting on behalf of{" "}
-          <span className="text-foreground font-medium">{org.name}</span>.
+          <span className="font-medium" style={{ color: "#1A1A1A" }}>{org.name}</span>.
         </div>
       )}
 
       <form
-        className="mt-8 space-y-8"
+        className="mt-6 space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
           setError(null);
@@ -294,13 +300,17 @@ export function GetHelpForm() {
         }}
       >
         {/* Basic info */}
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Basic info</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+        <section
+          className="rounded-xl border bg-white px-6 py-5 space-y-4"
+          style={{ borderColor: "#E2E4E8" }}
+        >
+          <h2 className="text-lg font-semibold" style={{ color: "#042C53" }}>Basic info</h2>
+          <div className="grid gap-4 sm:grid-cols-2 sm:gap-x-[18px]">
             <div>
-              <label className={labelClass}>Name *</label>
+              <label className={labelClass}>Name{reqStar}</label>
               <input
                 className={inputClass}
+                style={inputBorder}
                 value={contactName}
                 onChange={(e) => setContactName(e.target.value)}
                 required
@@ -308,9 +318,10 @@ export function GetHelpForm() {
               />
             </div>
             <div>
-              <label className={labelClass}>Email *</label>
+              <label className={labelClass}>Email{reqStar}</label>
               <input
                 className={inputClass}
+                style={inputBorder}
                 type="email"
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
@@ -322,13 +333,15 @@ export function GetHelpForm() {
               <label className={labelClass}>Partner</label>
               {orgKnown ? (
                 <input
-                  className={inputClass + " bg-muted/30"}
+                  className={inputClass}
+                  style={{ ...inputBorder, backgroundColor: "#F4F5F7" }}
                   value={org!.name}
                   readOnly
                 />
               ) : (
                 <input
                   className={inputClass}
+                  style={inputBorder}
                   value={partner}
                   onChange={(e) => setPartner(e.target.value)}
                   maxLength={300}
@@ -340,6 +353,7 @@ export function GetHelpForm() {
               <label className={labelClass}>Campus</label>
               <input
                 className={inputClass}
+                style={inputBorder}
                 value={campus}
                 onChange={(e) => setCampus(e.target.value)}
                 maxLength={300}
@@ -351,6 +365,7 @@ export function GetHelpForm() {
               {orgKnown ? (
                 <select
                   className={inputClass}
+                  style={inputBorder}
                   value={product}
                   onChange={(e) => setProduct(e.target.value)}
                 >
@@ -366,6 +381,7 @@ export function GetHelpForm() {
               ) : (
                 <input
                   className={inputClass}
+                  style={inputBorder}
                   value={product}
                   onChange={(e) => setProduct(e.target.value)}
                   maxLength={200}
@@ -377,10 +393,16 @@ export function GetHelpForm() {
         </section>
 
         {/* Help type */}
-        <section className="space-y-4">
-          <h2 className="text-lg font-semibold">How can we help you today?</h2>
+        <section
+          className="rounded-xl border bg-white px-6 py-5 space-y-4 transition-[height] duration-200"
+          style={{ borderColor: "#E2E4E8" }}
+        >
+          <h2 className="text-lg font-semibold" style={{ color: "#042C53" }}>
+            How can we help you today?
+          </h2>
           <select
             className={inputClass}
+            style={inputBorder}
             value={helpType}
             onChange={(e) => setHelpType(e.target.value as HelpType | "")}
             required
@@ -395,16 +417,17 @@ export function GetHelpForm() {
 
           {/* Option A / D */}
           {(helpType === "A" || helpType === "D") && (
-            <div className="space-y-3 rounded-md border border-border bg-muted/20 p-4">
-              <p className="text-sm text-muted-foreground">
-                Our <span className="font-medium text-foreground">Training</span> tab has
+            <div className="space-y-3 pt-4 border-t" style={{ borderColor: "#F0F1F3" }}>
+              <p className="text-sm" style={{ color: "#6B6F76" }}>
+                Our <span className="font-medium" style={{ color: "#1A1A1A" }}>Training</span> tab has
                 helpful FAQs and videos. If you can't find your answer there, then let us
                 know below. A team member will respond in 1–2 business days to help out.
               </p>
               <div>
-                <label className={labelClass}>Your question or comment *</label>
+                <label className={labelClass}>Your question or comment{reqStar}</label>
                 <textarea
                   className={inputClass + " min-h-[140px]"}
+                  style={inputBorder}
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   maxLength={5000}
@@ -416,10 +439,10 @@ export function GetHelpForm() {
 
           {/* Option B */}
           {helpType === "B" && (
-            <div className="space-y-4 rounded-md border border-border bg-muted/20 p-4">
+            <div className="space-y-4 pt-4 border-t" style={{ borderColor: "#F0F1F3" }}>
               <div>
                 <label className={labelClass}>
-                  What date should this report have been delivered? *
+                  What date should this report have been delivered?{reqStar}
                 </label>
                 <DatePickerField value={expectedDate} onChange={setExpectedDate} />
               </div>
@@ -427,6 +450,7 @@ export function GetHelpForm() {
                 <label className={labelClass}>How is this affecting your work?</label>
                 <select
                   className={inputClass}
+                  style={inputBorder}
                   value={severity ?? ""}
                   onChange={(e) =>
                     setSeverity(e.target.value as SubmissionInput["severity"] | "")
@@ -441,9 +465,10 @@ export function GetHelpForm() {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Additional details *</label>
+                <label className={labelClass}>Additional details{reqStar}</label>
                 <textarea
                   className={inputClass + " min-h-[120px]"}
+                  style={inputBorder}
                   value={bComments}
                   onChange={(e) => setBComments(e.target.value)}
                   maxLength={5000}
@@ -456,11 +481,12 @@ export function GetHelpForm() {
 
           {/* Option C */}
           {helpType === "C" && (
-            <div className="space-y-4 rounded-md border border-border bg-muted/20 p-4">
+            <div className="space-y-4 pt-4 border-t" style={{ borderColor: "#F0F1F3" }}>
               <div>
-                <label className={labelClass}>Short summary of the issue *</label>
+                <label className={labelClass}>Short summary of the issue{reqStar}</label>
                 <input
                   className={inputClass}
+                  style={inputBorder}
                   value={shortSummary}
                   onChange={(e) => setShortSummary(e.target.value)}
                   maxLength={300}
@@ -468,13 +494,14 @@ export function GetHelpForm() {
                 />
               </div>
               <div>
-                <label className={labelClass}>Date of report *</label>
+                <label className={labelClass}>Date of report{reqStar}</label>
                 <DatePickerField value={reportDate} onChange={setReportDate} />
               </div>
               <div>
-                <label className={labelClass}>Which tab is affected? *</label>
+                <label className={labelClass}>Which tab is affected?{reqStar}</label>
                 <input
                   className={inputClass}
+                  style={inputBorder}
                   value={tabAffected}
                   onChange={(e) => setTabAffected(e.target.value)}
                   maxLength={200}
@@ -482,9 +509,10 @@ export function GetHelpForm() {
                 />
               </div>
               <div>
-                <label className={labelClass}>Which section / field is affected? *</label>
+                <label className={labelClass}>Which section / field is affected?{reqStar}</label>
                 <input
                   className={inputClass}
+                  style={inputBorder}
                   value={sectionAffected}
                   onChange={(e) => setSectionAffected(e.target.value)}
                   maxLength={200}
@@ -495,15 +523,17 @@ export function GetHelpForm() {
                 <label className={labelClass}>Other comments</label>
                 <textarea
                   className={inputClass + " min-h-[100px]"}
+                  style={inputBorder}
                   value={cComments}
                   onChange={(e) => setCComments(e.target.value)}
                   maxLength={5000}
                 />
               </div>
               <div>
-                <label className={labelClass}>How is this affecting your work? *</label>
+                <label className={labelClass}>How is this affecting your work?{reqStar}</label>
                 <select
                   className={inputClass}
+                  style={inputBorder}
                   value={severity ?? ""}
                   onChange={(e) =>
                     setSeverity(e.target.value as SubmissionInput["severity"] | "")
@@ -519,12 +549,12 @@ export function GetHelpForm() {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Attachments (screenshots / documents) *</label>
+                <label className={labelClass}>Attachments (screenshots / documents){reqStar}</label>
                 <input
                   type="file"
                   multiple
                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
-                  className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+                  className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#185FA5] file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-[#13507f]"
                   onChange={(e) => {
                     const picked = Array.from(e.target.files ?? []);
                     const tooBig = picked.find((f) => f.size > 10 * 1024 * 1024);
@@ -545,8 +575,15 @@ export function GetHelpForm() {
                 {files.length > 0 && (
                   <ul className="mt-2 space-y-1 text-sm">
                     {files.map((f, idx) => (
-                      <li key={`${f.name}-${idx}`} className="flex items-center justify-between rounded border border-border bg-background px-2 py-1">
-                        <span className="truncate">{f.name} <span className="text-muted-foreground">({Math.round(f.size / 1024)} KB)</span></span>
+                      <li
+                        key={`${f.name}-${idx}`}
+                        className="flex items-center justify-between rounded border bg-white px-2 py-1"
+                        style={{ borderColor: "#E2E4E8" }}
+                      >
+                        <span className="truncate" style={{ color: "#1A1A1A" }}>
+                          {f.name}{" "}
+                          <span style={{ color: "#6B6F76" }}>({Math.round(f.size / 1024)} KB)</span>
+                        </span>
                         <button
                           type="button"
                           className="text-xs text-destructive hover:underline"
@@ -570,9 +607,14 @@ export function GetHelpForm() {
           </p>
         )}
 
-        <Button type="submit" disabled={mutation.isPending || uploading} size="lg">
-          {uploading ? "Uploading…" : mutation.isPending ? "Submitting…" : "Submit"}
-        </Button>
+        <button
+          type="submit"
+          disabled={mutation.isPending || uploading}
+          className="rounded-lg px-[22px] py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-60"
+          style={{ backgroundColor: "#185FA5" }}
+        >
+          {uploading ? "Uploading…" : mutation.isPending ? "Submitting…" : "Submit request"}
+        </button>
       </form>
 
       <Dialog
@@ -603,6 +645,7 @@ export function GetHelpForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
     </div>
   );
 }
