@@ -219,7 +219,22 @@ export function GetHelpForm() {
       // Upload files
       setUploading(true);
       try {
-        const folder = crypto.randomUUID();
+        // Create a short-lived draft submission row so the storage policy will
+        // allow uploads into a folder named after that submission id.
+        let draftId: string;
+        try {
+          const res = await createDraft({
+            data: { type, contactEmail: contactEmail.trim() },
+          });
+          draftId = res.id;
+        } catch (err) {
+          console.error("createDraft failed", err);
+          setError("Couldn't prepare upload. Please try again.");
+          setUploading(false);
+          return null;
+        }
+        const folder = draftId;
+        details.submissionId = draftId;
         const paths: string[] = [];
         for (const file of files) {
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
