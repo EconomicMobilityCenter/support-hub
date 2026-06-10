@@ -24,6 +24,7 @@ import {
 import { useOrg } from "@/hooks/use-org";
 import { PRODUCTS, productName } from "@/lib/products";
 import { submitForm, type SubmissionInput } from "@/lib/submissions.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 type HelpType = "A" | "B" | "C" | "D";
 
@@ -109,12 +110,16 @@ export function GetHelpForm() {
   // B
   const [expectedDate, setExpectedDate] = useState<Date | undefined>();
   const [severity, setSeverity] = useState<SubmissionInput["severity"] | "">("");
+  const [bComments, setBComments] = useState("");
 
   // C
   const [shortSummary, setShortSummary] = useState("");
-  const [whatHappened, setWhatHappened] = useState("");
-  const [steps, setSteps] = useState("");
-  const [attachments, setAttachments] = useState("");
+  const [reportDate, setReportDate] = useState<Date | undefined>();
+  const [tabAffected, setTabAffected] = useState("");
+  const [sectionAffected, setSectionAffected] = useState("");
+  const [cComments, setCComments] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -128,7 +133,7 @@ export function GetHelpForm() {
     },
   });
 
-  function buildPayload(): SubmissionInput | null {
+  async function buildPayload(): Promise<SubmissionInput | null> {
     const basic = z.object({
       contactName: z.string().trim().min(1).max(200),
       contactEmail: z.string().trim().email().max(320),
@@ -150,7 +155,7 @@ export function GetHelpForm() {
     const productValue = product.trim() || null;
 
     let summary = "";
-    const details: Record<string, string> = {};
+    const details: Record<string, string | string[]> = {};
     let sev: SubmissionInput["severity"] | null = null;
 
     if (helpType === "A" || helpType === "D") {
@@ -164,31 +169,68 @@ export function GetHelpForm() {
         setError("Please pick the date this report should have been delivered.");
         return null;
       }
-      if (!severity) {
-        setError("Please tell us how blocking this is.");
+      if (!bComments.trim()) {
+        setError("Please add some details about the missing report.");
         return null;
       }
-      sev = severity;
+      sev = severity || null;
       summary = `Report missing — expected ${format(expectedDate, "yyyy-MM-dd")}`;
       details.expectedDeliveryDate = format(expectedDate, "yyyy-MM-dd");
+      details.comments = bComments.trim();
     } else if (helpType === "C") {
       if (!shortSummary.trim()) {
         setError("Please provide a short summary.");
         return null;
       }
-      if (!whatHappened.trim()) {
-        setError("Please describe what happened vs what you expected.");
+      if (!reportDate) {
+        setError("Please pick the date of the report.");
+        return null;
+      }
+      if (!tabAffected.trim()) {
+        setError("Please tell us which tab is affected.");
+        return null;
+      }
+      if (!sectionAffected.trim()) {
+        setError("Please tell us which section or field is affected.");
         return null;
       }
       if (!severity) {
         setError("Please tell us how blocking this is.");
         return null;
       }
+      if (files.length === 0) {
+        setError("Please attach at least one screenshot or document.");
+        return null;
+      }
       sev = severity;
       summary = shortSummary.trim();
-      details.whatHappened = whatHappened.trim();
-      if (steps.trim()) details.stepsToReproduce = steps.trim();
-      if (attachments.trim()) details.attachmentLinks = attachments.trim();
+      details.reportDate = format(reportDate, "yyyy-MM-dd");
+      details.tabAffected = tabAffected.trim();
+      details.sectionAffected = sectionAffected.trim();
+      if (cComments.trim()) details.comments = cComments.trim();
+
+      // Upload files
+      setUploading(true);
+      try {
+        const folder = crypto.randomUUID();
+        const paths: string[] = [];
+        for (const file of files) {
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+          const path = `submissions/${folder}/${safeName}`;
+          const { error: upErr } = await supabase.storage
+            .from("support-attachments")
+            .upload(path, file, { upsert: false, contentType: file.type || undefined });
+          if (upErr) {
+            setError(`Failed to upload ${file.name}: ${upErr.message}`);
+            setUploading(false);
+            return null;
+          }
+          paths.push(path);
+        }
+        details.attachmentPaths = paths;
+      } finally {
+        setUploading(false);
+      }
     }
 
     return {
@@ -203,7 +245,7 @@ export function GetHelpForm() {
       contactEmail: contactEmail.trim(),
       summary,
       severity: sev,
-      details,
+      details: details as Record<string, unknown>,
     };
   }
 
@@ -243,10 +285,10 @@ export function GetHelpForm() {
 
       <form
         className="mt-8 space-y-8"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           setError(null);
-          const payload = buildPayload();
+          const payload = await buildPayload();
           if (!payload) return;
           mutation.mutate(payload);
         }}
@@ -382,14 +424,13 @@ export function GetHelpForm() {
                 <DatePickerField value={expectedDate} onChange={setExpectedDate} />
               </div>
               <div>
-                <label className={labelClass}>How is this affecting your work? *</label>
+                <label className={labelClass}>How is this affecting your work?</label>
                 <select
                   className={inputClass}
                   value={severity ?? ""}
                   onChange={(e) =>
                     setSeverity(e.target.value as SubmissionInput["severity"] | "")
                   }
-                  required
                 >
                   <option value="">Select severity</option>
                   {SEVERITY_OPTIONS.map((o) => (
@@ -398,6 +439,17 @@ export function GetHelpForm() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className={labelClass}>Additional details *</label>
+                <textarea
+                  className={inputClass + " min-h-[120px]"}
+                  value={bComments}
+                  onChange={(e) => setBComments(e.target.value)}
+                  maxLength={5000}
+                  required
+                  placeholder="Anything else that helps us track this down"
+                />
               </div>
             </div>
           )}
@@ -416,23 +468,36 @@ export function GetHelpForm() {
                 />
               </div>
               <div>
-                <label className={labelClass}>What happened / what did you expect? *</label>
-                <textarea
-                  className={inputClass + " min-h-[120px]"}
-                  value={whatHappened}
-                  onChange={(e) => setWhatHappened(e.target.value)}
-                  maxLength={5000}
+                <label className={labelClass}>Date of report *</label>
+                <DatePickerField value={reportDate} onChange={setReportDate} />
+              </div>
+              <div>
+                <label className={labelClass}>Which tab is affected? *</label>
+                <input
+                  className={inputClass}
+                  value={tabAffected}
+                  onChange={(e) => setTabAffected(e.target.value)}
+                  maxLength={200}
                   required
                 />
               </div>
               <div>
-                <label className={labelClass}>Do you have specific steps to reproduce this?</label>
+                <label className={labelClass}>Which section / field is affected? *</label>
+                <input
+                  className={inputClass}
+                  value={sectionAffected}
+                  onChange={(e) => setSectionAffected(e.target.value)}
+                  maxLength={200}
+                  required
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Other comments</label>
                 <textarea
                   className={inputClass + " min-h-[100px]"}
-                  value={steps}
-                  onChange={(e) => setSteps(e.target.value)}
+                  value={cComments}
+                  onChange={(e) => setCComments(e.target.value)}
                   maxLength={5000}
-                  placeholder={"1. Open …\n2. Click …\n3. …"}
                 />
               </div>
               <div>
@@ -454,14 +519,45 @@ export function GetHelpForm() {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Attachment links (screenshots / files)</label>
+                <label className={labelClass}>Attachments (screenshots / documents) *</label>
                 <input
-                  className={inputClass}
-                  value={attachments}
-                  onChange={(e) => setAttachments(e.target.value)}
-                  maxLength={1000}
-                  placeholder="Paste shareable links (Drive, OneDrive, etc.)"
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                  className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+                  onChange={(e) => {
+                    const picked = Array.from(e.target.files ?? []);
+                    const tooBig = picked.find((f) => f.size > 10 * 1024 * 1024);
+                    if (tooBig) {
+                      setError(`"${tooBig.name}" is larger than 10MB.`);
+                      return;
+                    }
+                    const total = [...files, ...picked].reduce((s, f) => s + f.size, 0);
+                    if (total > 25 * 1024 * 1024) {
+                      setError("Total attachments exceed 25MB.");
+                      return;
+                    }
+                    setError(null);
+                    setFiles((prev) => [...prev, ...picked]);
+                    e.target.value = "";
+                  }}
                 />
+                {files.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-sm">
+                    {files.map((f, idx) => (
+                      <li key={`${f.name}-${idx}`} className="flex items-center justify-between rounded border border-border bg-background px-2 py-1">
+                        <span className="truncate">{f.name} <span className="text-muted-foreground">({Math.round(f.size / 1024)} KB)</span></span>
+                        <button
+                          type="button"
+                          className="text-xs text-destructive hover:underline"
+                          onClick={() => setFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           )}
@@ -474,8 +570,8 @@ export function GetHelpForm() {
           </p>
         )}
 
-        <Button type="submit" disabled={mutation.isPending} size="lg">
-          {mutation.isPending ? "Submitting…" : "Submit"}
+        <Button type="submit" disabled={mutation.isPending || uploading} size="lg">
+          {uploading ? "Uploading…" : mutation.isPending ? "Submitting…" : "Submit"}
         </Button>
       </form>
 

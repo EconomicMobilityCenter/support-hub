@@ -70,7 +70,13 @@ function buildEmailBody(data: SubmissionInput, submittedAt: Date): { subject: st
     lines.push("--- Details ---");
     for (const [k, v] of Object.entries(data.details)) {
       if (v == null || v === "") continue;
-      lines.push(`${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`);
+      if (Array.isArray(v)) {
+        if (v.length === 0) continue;
+        lines.push(`${k}:`);
+        for (const item of v) lines.push(`  - ${typeof item === "string" ? item : JSON.stringify(item)}`);
+      } else {
+        lines.push(`${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`);
+      }
     }
   }
 
