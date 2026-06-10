@@ -231,7 +231,7 @@ export function GetHelpForm() {
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
-      <h1 className="text-3xl font-bold tracking-tight">Get Help</h1>
+      <h1 className="text-3xl font-extrabold tracking-tight text-[#00005c]">Get Help</h1>
       <p className="mt-2 text-muted-foreground">
         Ask a question, report a missing report, or flag a data issue. We typically reply
         within 1–2 business days.
