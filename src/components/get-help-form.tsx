@@ -24,6 +24,7 @@ import {
 import { useOrg } from "@/hooks/use-org";
 import { PRODUCTS, productName } from "@/lib/products";
 import { submitForm, type SubmissionInput } from "@/lib/submissions.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 type HelpType = "A" | "B" | "C" | "D";
 
@@ -109,12 +110,16 @@ export function GetHelpForm() {
   // B
   const [expectedDate, setExpectedDate] = useState<Date | undefined>();
   const [severity, setSeverity] = useState<SubmissionInput["severity"] | "">("");
+  const [bComments, setBComments] = useState("");
 
   // C
   const [shortSummary, setShortSummary] = useState("");
-  const [whatHappened, setWhatHappened] = useState("");
-  const [steps, setSteps] = useState("");
-  const [attachments, setAttachments] = useState("");
+  const [reportDate, setReportDate] = useState<Date | undefined>();
+  const [tabAffected, setTabAffected] = useState("");
+  const [sectionAffected, setSectionAffected] = useState("");
+  const [cComments, setCComments] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -128,7 +133,7 @@ export function GetHelpForm() {
     },
   });
 
-  function buildPayload(): SubmissionInput | null {
+  async function buildPayload(): Promise<SubmissionInput | null> {
     const basic = z.object({
       contactName: z.string().trim().min(1).max(200),
       contactEmail: z.string().trim().email().max(320),
@@ -150,7 +155,7 @@ export function GetHelpForm() {
     const productValue = product.trim() || null;
 
     let summary = "";
-    const details: Record<string, string> = {};
+    const details: Record<string, string | string[]> = {};
     let sev: SubmissionInput["severity"] | null = null;
 
     if (helpType === "A" || helpType === "D") {
@@ -164,31 +169,68 @@ export function GetHelpForm() {
         setError("Please pick the date this report should have been delivered.");
         return null;
       }
-      if (!severity) {
-        setError("Please tell us how blocking this is.");
+      if (!bComments.trim()) {
+        setError("Please add some details about the missing report.");
         return null;
       }
-      sev = severity;
+      sev = severity || null;
       summary = `Report missing — expected ${format(expectedDate, "yyyy-MM-dd")}`;
       details.expectedDeliveryDate = format(expectedDate, "yyyy-MM-dd");
+      details.comments = bComments.trim();
     } else if (helpType === "C") {
       if (!shortSummary.trim()) {
         setError("Please provide a short summary.");
         return null;
       }
-      if (!whatHappened.trim()) {
-        setError("Please describe what happened vs what you expected.");
+      if (!reportDate) {
+        setError("Please pick the date of the report.");
+        return null;
+      }
+      if (!tabAffected.trim()) {
+        setError("Please tell us which tab is affected.");
+        return null;
+      }
+      if (!sectionAffected.trim()) {
+        setError("Please tell us which section or field is affected.");
         return null;
       }
       if (!severity) {
         setError("Please tell us how blocking this is.");
         return null;
       }
+      if (files.length === 0) {
+        setError("Please attach at least one screenshot or document.");
+        return null;
+      }
       sev = severity;
       summary = shortSummary.trim();
-      details.whatHappened = whatHappened.trim();
-      if (steps.trim()) details.stepsToReproduce = steps.trim();
-      if (attachments.trim()) details.attachmentLinks = attachments.trim();
+      details.reportDate = format(reportDate, "yyyy-MM-dd");
+      details.tabAffected = tabAffected.trim();
+      details.sectionAffected = sectionAffected.trim();
+      if (cComments.trim()) details.comments = cComments.trim();
+
+      // Upload files
+      setUploading(true);
+      try {
+        const folder = crypto.randomUUID();
+        const paths: string[] = [];
+        for (const file of files) {
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+          const path = `submissions/${folder}/${safeName}`;
+          const { error: upErr } = await supabase.storage
+            .from("support-attachments")
+            .upload(path, file, { upsert: false, contentType: file.type || undefined });
+          if (upErr) {
+            setError(`Failed to upload ${file.name}: ${upErr.message}`);
+            setUploading(false);
+            return null;
+          }
+          paths.push(path);
+        }
+        details.attachmentPaths = paths;
+      } finally {
+        setUploading(false);
+      }
     }
 
     return {
@@ -203,7 +245,7 @@ export function GetHelpForm() {
       contactEmail: contactEmail.trim(),
       summary,
       severity: sev,
-      details,
+      details: details as Record<string, unknown>,
     };
   }
 
@@ -243,10 +285,10 @@ export function GetHelpForm() {
 
       <form
         className="mt-8 space-y-8"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           setError(null);
-          const payload = buildPayload();
+          const payload = await buildPayload();
           if (!payload) return;
           mutation.mutate(payload);
         }}
