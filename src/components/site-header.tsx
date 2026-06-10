@@ -8,40 +8,60 @@ export function SiteHeader() {
   const requestedOrg = search.org ?? null;
 
   const navClass =
-    "text-sm font-semibold text-[#00005E] hover:text-[#003291] transition-colors";
-  const activeClass = "text-sm font-semibold text-[#003291]";
+    "text-sm font-medium transition-colors hover:text-white";
+  const activeClass = "text-sm font-medium text-white";
 
   return (
-    <header className="border-b border-border bg-background/80 backdrop-blur sticky top-0 z-10">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">
-        <Link to="/" className="flex items-center gap-3 tracking-tight font-sans font-bold text-[#00005c]">
-          <img src={emcLogo.url} alt="Economic Mobility Center" className="h-10 w-auto" />
-          <span>EMC Support</span>
+    <header className="sticky top-0 z-10" style={{ backgroundColor: "#042C53" }}>
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-3">
+        <Link to="/" className="flex items-center gap-2.5">
+          <img
+            src={emcLogo.url}
+            alt="Economic Mobility Center"
+            className="h-8 w-8 rounded-full object-cover bg-white"
+          />
+          <span className="text-[15px] font-medium text-white">EMC Support</span>
         </Link>
         <div className="flex items-center gap-6">
           <nav className="flex items-center gap-5">
-            <Link to="/training" className={navClass} activeProps={{ className: activeClass }}>
+            <Link
+              to="/training"
+              className={navClass}
+              style={{ color: "#B5D4F4" }}
+              activeProps={{ className: activeClass }}
+            >
               Training
             </Link>
-            <Link to="/get-help" className={navClass} activeProps={{ className: activeClass }}>
-              Get Help
+            <Link
+              to="/get-help"
+              className={navClass}
+              style={{ color: "#B5D4F4" }}
+              activeProps={{ className: activeClass }}
+            >
+              Get help
             </Link>
           </nav>
-          <div className="text-right text-xs text-muted-foreground min-w-[120px]">
+          <div className="text-right min-w-[120px] leading-tight">
             {isLoading ? (
-              "Loading…"
+              <span className="text-[11px]" style={{ color: "#85B7EB" }}>
+                Loading…
+              </span>
             ) : org ? (
               <>
-                <div className="text-foreground font-medium">{org.name}</div>
-                <div>Signed-in via link</div>
+                <div className="text-[13px] text-white">{org.name}</div>
+                <div className="text-[11px]" style={{ color: "#85B7EB" }}>
+                  Signed in via link
+                </div>
               </>
             ) : requestedOrg ? (
               <>
-                <div className="text-foreground font-medium">{requestedOrg}</div>
-                <div>Signed-in via link</div>
+                <div className="text-[13px] text-white">{requestedOrg}</div>
+                <div className="text-[11px]" style={{ color: "#85B7EB" }}>
+                  Signed in via link
+                </div>
               </>
             ) : (
-              <div className="text-foreground font-medium">Public user</div>
+              <div className="text-[13px] text-white">Public user</div>
             )}
           </div>
         </div>
