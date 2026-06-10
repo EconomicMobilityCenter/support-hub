@@ -18,7 +18,7 @@ export function SiteHeader() {
           <img
             src={emcLogo.url}
             alt="Economic Mobility Center"
-            className="h-8 w-8 rounded-full object-cover bg-white"
+            className="h-9 w-9 rounded-full bg-white object-contain p-1"
           />
           <span className="text-[15px] font-medium text-white">EMC Support</span>
         </Link>
