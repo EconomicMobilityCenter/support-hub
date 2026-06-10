@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/dialog";
 import { useOrg } from "@/hooks/use-org";
 import { PRODUCTS, productName } from "@/lib/products";
-import { submitForm, type SubmissionInput } from "@/lib/submissions.functions";
+import {
+  submitForm,
+  createDraftSubmission,
+  type SubmissionInput,
+} from "@/lib/submissions.functions";
 import { supabase } from "@/integrations/supabase/client";
 
 type HelpType = "A" | "B" | "C" | "D";
@@ -89,6 +93,7 @@ export function GetHelpForm() {
   const { org, orgId } = useOrg();
   const search = useSearch({ strict: false }) as { product?: string };
   const submit = useServerFn(submitForm);
+  const createDraft = useServerFn(createDraftSubmission);
   const navigate = useNavigate();
 
   const orgKnown = !!org;
@@ -214,7 +219,22 @@ export function GetHelpForm() {
       // Upload files
       setUploading(true);
       try {
-        const folder = crypto.randomUUID();
+        // Create a short-lived draft submission row so the storage policy will
+        // allow uploads into a folder named after that submission id.
+        let draftId: string;
+        try {
+          const res = await createDraft({
+            data: { type, contactEmail: contactEmail.trim() },
+          });
+          draftId = res.id;
+        } catch (err) {
+          console.error("createDraft failed", err);
+          setError("Couldn't prepare upload. Please try again.");
+          setUploading(false);
+          return null;
+        }
+        const folder = draftId;
+        details.submissionId = draftId;
         const paths: string[] = [];
         for (const file of files) {
           const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -248,6 +268,7 @@ export function GetHelpForm() {
       summary,
       severity: sev,
       details: details as Record<string, unknown>,
+      submissionId: (details.submissionId as string | undefined) ?? null,
     };
   }
 

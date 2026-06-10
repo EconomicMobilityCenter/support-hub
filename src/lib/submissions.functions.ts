@@ -18,6 +18,7 @@ const baseSchema = z.object({
   severity: severityEnum.optional().nullable(),
   // Extra fields per form path live in `details`
   details: z.record(z.string(), z.unknown()).default({}),
+  submissionId: z.string().uuid().optional().nullable(),
 });
 
 export type SubmissionInput = z.infer<typeof baseSchema>;
@@ -87,26 +88,45 @@ export const submitForm = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => baseSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error, data: row } = await supabaseAdmin
-      .from("support_submissions")
-      .insert({
-        type: data.type,
-        org_id: data.orgId ?? null,
-        org_name: data.orgName ?? null,
-        product: data.product ?? null,
-        contact_name: data.contactName,
-        contact_email: data.contactEmail,
-        summary: data.summary,
-        payload: {
-          helpType: data.helpType,
-          partner: data.partner ?? null,
-          campus: data.campus ?? null,
-          severity: data.severity ?? null,
-          ...data.details,
-        } as Record<string, unknown> as never,
-      })
-      .select("id")
-      .single();
+    const values = {
+      type: data.type,
+      org_id: data.orgId ?? null,
+      org_name: data.orgName ?? null,
+      product: data.product ?? null,
+      contact_name: data.contactName,
+      contact_email: data.contactEmail,
+      summary: data.summary,
+      status: "new",
+      payload: {
+        helpType: data.helpType,
+        partner: data.partner ?? null,
+        campus: data.campus ?? null,
+        severity: data.severity ?? null,
+        ...data.details,
+      } as Record<string, unknown> as never,
+    };
+    let row: { id: string } | null = null;
+    let error;
+    if (data.submissionId) {
+      // Finalize an existing draft created to authorize attachment uploads.
+      const res = await supabaseAdmin
+        .from("support_submissions")
+        .update(values)
+        .eq("id", data.submissionId)
+        .eq("status", "draft")
+        .select("id")
+        .single();
+      row = res.data;
+      error = res.error;
+    } else {
+      const res = await supabaseAdmin
+        .from("support_submissions")
+        .insert(values)
+        .select("id")
+        .single();
+      row = res.data;
+      error = res.error;
+    }
     if (error) {
       console.error("submitForm insert failed", error);
       throw new Error("Failed to save submission");
@@ -123,5 +143,38 @@ export const submitForm = createServerFn({ method: "POST" })
       console.error("notification build failed", err);
     }
 
-    return { id: row.id, helpType: data.helpType };
+    return { id: row!.id, helpType: data.helpType };
+  });
+
+// Creates a short-lived draft submission row used to authorize attachment uploads.
+// The storage policy on support-attachments only allows uploads into a folder
+// whose UUID matches an existing submission row created within the last hour.
+export const createDraftSubmission = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        type: z.enum(["issue", "support"]),
+        contactEmail: z.string().trim().email().max(320),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("support_submissions")
+      .insert({
+        type: data.type,
+        status: "draft",
+        contact_name: "(draft)",
+        contact_email: data.contactEmail,
+        summary: "(draft)",
+        payload: {} as Record<string, unknown> as never,
+      })
+      .select("id")
+      .single();
+    if (error || !row) {
+      console.error("createDraftSubmission failed", error);
+      throw new Error("Failed to create draft submission");
+    }
+    return { id: row.id as string };
   });
