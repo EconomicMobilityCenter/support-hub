@@ -155,7 +155,36 @@ export const submitForm = createServerFn({ method: "POST" })
         import("react"),
         import("@/lib/email-templates/support-submission-notification"),
       ]);
-      const templateData = buildTemplateData(data, new Date());
+      const templateData: Record<string, unknown> = buildTemplateData(data, new Date());
+
+      // List attachments uploaded against this submission and create signed URLs.
+      try {
+        const folder = `submissions/${row!.id}`;
+        const { data: files } = await supabaseAdmin.storage
+          .from("support-attachments")
+          .list(folder, { limit: 100 });
+        if (files && files.length > 0) {
+          const paths = files
+            .filter((f) => f.name && !f.name.startsWith("."))
+            .map((f) => `${folder}/${f.name}`);
+          if (paths.length > 0) {
+            const { data: signed } = await supabaseAdmin.storage
+              .from("support-attachments")
+              .createSignedUrls(paths, 60 * 60 * 24 * 7);
+            if (signed) {
+              templateData.attachments = signed
+                .filter((s) => s.signedUrl)
+                .map((s) => ({
+                  name: s.path?.split("/").pop() ?? "attachment",
+                  url: s.signedUrl as string,
+                }));
+            }
+          }
+        }
+      } catch (attachErr) {
+        console.error("attachment signed URL generation failed", attachErr);
+      }
+
       const element = React.createElement(template.component, templateData);
       const [html, text] = await Promise.all([
         render(element),

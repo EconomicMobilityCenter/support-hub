@@ -17,6 +17,11 @@ interface DetailLine {
   value: string
 }
 
+interface AttachmentLink {
+  name: string
+  url: string
+}
+
 interface Props {
   pathLabel?: string
   helpType?: string
@@ -30,6 +35,7 @@ interface Props {
   summary?: string
   submittedAt?: string
   detailLines?: DetailLine[]
+  attachments?: AttachmentLink[]
 }
 
 const Email = ({
@@ -45,6 +51,7 @@ const Email = ({
   summary = '(no summary)',
   submittedAt,
   detailLines = [],
+  attachments = [],
 }: Props) => {
   const rows: DetailLine[] = [
     { label: 'Name', value: contactName },
@@ -91,6 +98,20 @@ const Email = ({
                   <strong style={rowLabel}>{d.label}:</strong> {d.value}
                 </Text>
               ))}
+            </Section>
+          )}
+
+          {attachments.length > 0 && (
+            <Section style={card}>
+              <Heading as="h2" style={h2}>Attachments</Heading>
+              {attachments.map((a, i) => (
+                <Text key={i} style={row}>
+                  <a href={a.url} style={{ color: '#042C53' }}>{a.name}</a>
+                </Text>
+              ))}
+              <Text style={{ ...row, color: '#6B6F76', fontSize: '12px' }}>
+                Links expire in 7 days.
+              </Text>
             </Section>
           )}
 
