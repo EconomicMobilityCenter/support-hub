@@ -26,6 +26,7 @@ import { PRODUCTS, productName } from "@/lib/products";
 import {
   submitForm,
   createDraftSubmission,
+  createAttachmentUploadUrl,
   type SubmissionInput,
 } from "@/lib/submissions.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,6 +95,7 @@ export function GetHelpForm() {
   const search = useSearch({ strict: false }) as { product?: string };
   const submit = useServerFn(submitForm);
   const createDraft = useServerFn(createDraftSubmission);
+  const createUploadUrl = useServerFn(createAttachmentUploadUrl);
   const navigate = useNavigate();
 
   const orgKnown = !!org;
@@ -238,17 +240,34 @@ export function GetHelpForm() {
         details.submissionId = draftId;
         const paths: string[] = [];
         for (const file of files) {
-          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-          const path = `submissions/${folder}/${safeName}`;
+          let upload: { path: string; token: string };
+          try {
+            upload = await createUploadUrl({
+              data: {
+                submissionId: folder,
+                orgId,
+                fileName: file.name,
+                contentType: file.type || null,
+                fileSize: file.size,
+              },
+            });
+          } catch (err) {
+            console.error("create upload URL failed", err);
+            setError(`Failed to upload ${file.name}: couldn't prepare upload.`);
+            setUploading(false);
+            return null;
+          }
           const { error: upErr } = await supabase.storage
             .from("support-attachments")
-            .upload(path, file, { upsert: false, contentType: file.type || undefined });
+            .uploadToSignedUrl(upload.path, upload.token, file, {
+              contentType: file.type || undefined,
+            });
           if (upErr) {
             setError(`Failed to upload ${file.name}: ${upErr.message}`);
             setUploading(false);
             return null;
           }
-          paths.push(path);
+          paths.push(upload.path);
         }
         details.attachmentPaths = paths;
       } finally {
