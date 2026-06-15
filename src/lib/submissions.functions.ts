@@ -32,56 +32,60 @@ const SEVERITY_LABELS: Record<Severity, string> = {
   urgent: "Urgent — blocking my whole team / a deadline",
 };
 
-function buildEmailBody(data: SubmissionInput, submittedAt: Date): { subject: string; text: string; to: string } {
+const PATH_LABELS: Record<HelpType, string> = {
+  A: "Question",
+  B: "Report not delivered",
+  C: "Data missing or wrong",
+  D: "Other",
+};
+
+function humanizeKey(k: string): string {
+  return k
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/^\w/, (c) => c.toUpperCase());
+}
+
+function buildTemplateData(data: SubmissionInput, submittedAt: Date) {
   const isUrgent =
     data.helpType === "B" ||
     (data.helpType === "C" && (data.severity === "urgent" || data.severity === "blocking"));
+  const pathLabel = PATH_LABELS[data.helpType];
 
-  const to =
-    data.helpType === "A" || data.helpType === "D"
-      ? "support@economicmobilitycenter.org"
-      : "data@economicmobilitycenter.org";
-
-  const pathLabel = {
-    A: "Question",
-    B: "Report not delivered",
-    C: "Data missing or wrong",
-    D: "Other",
-  }[data.helpType];
-
-  const subjectBase = `[EMC Support] ${pathLabel} — ${data.summary.slice(0, 80)}`;
-  const subject = isUrgent ? `[URGENT] ${subjectBase}` : subjectBase;
-
-  const lines: string[] = [];
-  lines.push(`Submitted: ${submittedAt.toISOString()}`);
-  lines.push(`Path: ${pathLabel} (${data.helpType})`);
-  lines.push("");
-  lines.push("--- Contact ---");
-  lines.push(`Name: ${data.contactName}`);
-  lines.push(`Email: ${data.contactEmail}`);
-  lines.push(`Partner: ${data.orgName ?? data.partner ?? "(unknown)"}`);
-  lines.push(`Campus: ${data.campus ?? "(none)"}`);
-  lines.push(`Product: ${data.product ?? "(none)"}`);
-  if (data.severity) lines.push(`Severity: ${SEVERITY_LABELS[data.severity]}`);
-  lines.push("");
-  lines.push("--- Summary ---");
-  lines.push(data.summary);
-  if (data.details && Object.keys(data.details).length) {
-    lines.push("");
-    lines.push("--- Details ---");
+  const detailLines: Array<{ label: string; value: string }> = [];
+  if (data.details) {
     for (const [k, v] of Object.entries(data.details)) {
       if (v == null || v === "") continue;
+      const label = humanizeKey(k);
       if (Array.isArray(v)) {
         if (v.length === 0) continue;
-        lines.push(`${k}:`);
-        for (const item of v) lines.push(`  - ${typeof item === "string" ? item : JSON.stringify(item)}`);
+        detailLines.push({
+          label,
+          value: v.map((item) => (typeof item === "string" ? item : JSON.stringify(item))).join(", "),
+        });
       } else {
-        lines.push(`${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`);
+        detailLines.push({
+          label,
+          value: typeof v === "string" ? v : JSON.stringify(v),
+        });
       }
     }
   }
 
-  return { subject, text: lines.join("\n"), to };
+  return {
+    pathLabel,
+    helpType: data.helpType,
+    isUrgent,
+    contactName: data.contactName,
+    contactEmail: data.contactEmail,
+    partner: data.orgName ?? data.partner ?? undefined,
+    campus: data.campus ?? undefined,
+    product: data.product ?? undefined,
+    severityLabel: data.severity ? SEVERITY_LABELS[data.severity] : undefined,
+    summary: data.summary,
+    submittedAt: submittedAt.toISOString(),
+    detailLines,
+  };
 }
 
 export const submitForm = createServerFn({ method: "POST" })
@@ -132,15 +136,61 @@ export const submitForm = createServerFn({ method: "POST" })
       throw new Error("Failed to save submission");
     }
 
-    // Best-effort email notification. Logged for now; will be wired to Lovable Emails
-    // once the project's sender domain is configured.
+    // Best-effort email notification — render and enqueue directly.
+    // The /lovable/email/transactional/send route requires a signed-in user;
+    // form submitters are anonymous so we enqueue here using the admin client.
     try {
-      const email = buildEmailBody(data, new Date());
-      console.log("[get-help] notification target:", email.to);
-      console.log("[get-help] subject:", email.subject);
-      console.log("[get-help] body:\n" + email.text);
+      const [{ render }, React, { template }] = await Promise.all([
+        import("@react-email/components"),
+        import("react"),
+        import("@/lib/email-templates/support-submission-notification"),
+      ]);
+      const templateData = buildTemplateData(data, new Date());
+      const element = React.createElement(template.component, templateData);
+      const [html, text] = await Promise.all([
+        render(element),
+        render(element, { plainText: true }),
+      ]);
+      const subject =
+        typeof template.subject === "function"
+          ? template.subject(templateData)
+          : template.subject;
+      const messageId = `support-submission-${row!.id}`;
+      await supabaseAdmin.from("email_send_log").insert({
+        message_id: messageId,
+        template_name: "support-submission-notification",
+        recipient_email: template.to!,
+        status: "pending",
+      });
+      const { error: enqueueError } = await supabaseAdmin.rpc("enqueue_email", {
+        queue_name: "transactional_emails",
+        payload: {
+          message_id: messageId,
+          to: template.to!,
+          from: "EMC Support <noreply@support.economicmobilitycenter.org>",
+          sender_domain: "notify.support.economicmobilitycenter.org",
+          subject,
+          html,
+          text,
+          purpose: "transactional",
+          label: "support-submission-notification",
+          idempotency_key: messageId,
+          reply_to: data.contactEmail,
+          queued_at: new Date().toISOString(),
+        } as never,
+      });
+      if (enqueueError) {
+        console.error("submission email enqueue failed", enqueueError);
+        await supabaseAdmin.from("email_send_log").insert({
+          message_id: messageId,
+          template_name: "support-submission-notification",
+          recipient_email: template.to!,
+          status: "failed",
+          error_message: enqueueError.message?.slice(0, 1000) ?? "enqueue failed",
+        });
+      }
     } catch (err) {
-      console.error("notification build failed", err);
+      console.error("submission email send failed", err);
     }
 
     return { id: row!.id, helpType: data.helpType };
