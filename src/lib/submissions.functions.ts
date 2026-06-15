@@ -156,6 +156,33 @@ export const submitForm = createServerFn({ method: "POST" })
           ? template.subject(templateData)
           : template.subject;
       const messageId = `support-submission-${row!.id}`;
+      // Get or create an unsubscribe token for the recipient (required by Lovable Emails).
+      const recipientLc = template.to!.toLowerCase();
+      let unsubscribeToken: string | undefined;
+      const { data: existingTok } = await supabaseAdmin
+        .from("email_unsubscribe_tokens")
+        .select("token, used_at")
+        .eq("email", recipientLc)
+        .maybeSingle();
+      if (existingTok && !existingTok.used_at) {
+        unsubscribeToken = existingTok.token;
+      } else {
+        const newTok = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+        await supabaseAdmin
+          .from("email_unsubscribe_tokens")
+          .upsert(
+            { token: newTok, email: recipientLc },
+            { onConflict: "email", ignoreDuplicates: true },
+          );
+        const { data: storedTok } = await supabaseAdmin
+          .from("email_unsubscribe_tokens")
+          .select("token")
+          .eq("email", recipientLc)
+          .maybeSingle();
+        unsubscribeToken = storedTok?.token ?? newTok;
+      }
       await supabaseAdmin.from("email_send_log").insert({
         message_id: messageId,
         template_name: "support-submission-notification",
@@ -176,6 +203,7 @@ export const submitForm = createServerFn({ method: "POST" })
           label: "support-submission-notification",
           idempotency_key: messageId,
           reply_to: data.contactEmail,
+          unsubscribe_token: unsubscribeToken,
           queued_at: new Date().toISOString(),
         } as never,
       });
