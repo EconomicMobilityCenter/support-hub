@@ -277,6 +277,12 @@ export const createAttachmentUploadUrl = createServerFn({ method: "POST" })
       throw new Error("This attachment file type is not allowed");
     }
 
+    const { getContentBundleForServer } = await import("@/lib/content.functions");
+    const content = await getContentBundleForServer();
+    if (!content.orgs[data.orgId]) {
+      throw new Error("Only verified partners are allowed to add attachments");
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: draft, error: draftError } = await supabaseAdmin
       .from("support_submissions")
