@@ -90,13 +90,14 @@ function DatePickerField({
 }
 
 export function GetHelpForm() {
-  const { org, orgId } = useOrg();
+  const { org, orgId, isLoading: orgLoading } = useOrg();
   const search = useSearch({ strict: false }) as { product?: string };
   const submit = useServerFn(submitForm);
   const createDraft = useServerFn(createDraftSubmission);
   const navigate = useNavigate();
 
   const orgKnown = !!org;
+  const attachmentsAllowed = orgKnown || orgLoading;
   const availableProducts = orgKnown
     ? (org!.products ?? []).map((slug) => ({ slug, name: productName(slug) }))
     : PRODUCTS.map((p) => ({ slug: p.slug, name: p.name }));
