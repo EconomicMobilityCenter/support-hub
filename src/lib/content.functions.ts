@@ -150,10 +150,14 @@ async function fetchBundle(): Promise<ContentBundle> {
   }
 }
 
-export const getContent = createServerFn({ method: "GET" }).handler(async () => {
+export async function getContentBundleForServer(): Promise<ContentBundle> {
   const now = Date.now();
   if (cache && cache.expiresAt > now) return cache.data;
   const data = await fetchBundle();
   cache = { data, expiresAt: now + TTL_MS };
   return data;
+}
+
+export const getContent = createServerFn({ method: "GET" }).handler(async () => {
+  return getContentBundleForServer();
 });
