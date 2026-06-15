@@ -11,6 +11,6 @@ export function useOrg(): {
   const requested = search.org ?? null;
   const { data, isLoading } = useContent();
   const org = requested ? data.orgs[requested] ?? null : null;
-  const orgId = org ? requested! : "public";
+  const orgId = org ? requested! : requested && isLoading ? requested : "public";
   return { orgId, org, isLoading };
 }
