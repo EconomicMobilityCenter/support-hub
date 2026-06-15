@@ -90,13 +90,14 @@ function DatePickerField({
 }
 
 export function GetHelpForm() {
-  const { org, orgId } = useOrg();
+  const { org, orgId, isLoading: orgLoading } = useOrg();
   const search = useSearch({ strict: false }) as { product?: string };
   const submit = useServerFn(submitForm);
   const createDraft = useServerFn(createDraftSubmission);
   const navigate = useNavigate();
 
   const orgKnown = !!org;
+  const attachmentsAllowed = orgKnown || orgLoading;
   const availableProducts = orgKnown
     ? (org!.products ?? []).map((slug) => ({ slug, name: productName(slug) }))
     : PRODUCTS.map((p) => ({ slug: p.slug, name: p.name }));
@@ -571,16 +572,16 @@ export function GetHelpForm() {
               </div>
               <div>
                 <label className={labelClass}>
-                  Attachments (screenshots / documents){orgKnown ? reqStar : null}
+                  Attachments (screenshots / documents){attachmentsAllowed ? reqStar : null}
                 </label>
                 <input
                   type="file"
                   multiple
-                  disabled={!orgKnown}
+                  disabled={!attachmentsAllowed}
                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
                   className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#185FA5] file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-[#13507f] disabled:cursor-not-allowed disabled:opacity-50 disabled:file:bg-[#9CA3AF] disabled:hover:file:bg-[#9CA3AF]"
                   onChange={(e) => {
-                    if (!orgKnown) return;
+                    if (!attachmentsAllowed) return;
                     const picked = Array.from(e.target.files ?? []);
                     const tooBig = picked.find((f) => f.size > 10 * 1024 * 1024);
                     if (tooBig) {
@@ -597,7 +598,7 @@ export function GetHelpForm() {
                     e.target.value = "";
                   }}
                 />
-                {!orgKnown && (
+                {!attachmentsAllowed && (
                   <p className="mt-2 text-xs" style={{ color: "#6B6F76" }}>
                     Only verified partners are allowed to add attachments.
                   </p>
