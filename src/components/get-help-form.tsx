@@ -205,7 +205,7 @@ export function GetHelpForm() {
         setError("Please tell us how blocking this is.");
         return null;
       }
-      if (files.length === 0) {
+      if (orgKnown && files.length === 0) {
         setError("Please attach at least one screenshot or document.");
         return null;
       }
@@ -570,13 +570,17 @@ export function GetHelpForm() {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Attachments (screenshots / documents){reqStar}</label>
+                <label className={labelClass}>
+                  Attachments (screenshots / documents){orgKnown ? reqStar : null}
+                </label>
                 <input
                   type="file"
                   multiple
+                  disabled={!orgKnown}
                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
-                  className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#185FA5] file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-[#13507f]"
+                  className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#185FA5] file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-[#13507f] disabled:cursor-not-allowed disabled:opacity-50 disabled:file:bg-[#9CA3AF] disabled:hover:file:bg-[#9CA3AF]"
                   onChange={(e) => {
+                    if (!orgKnown) return;
                     const picked = Array.from(e.target.files ?? []);
                     const tooBig = picked.find((f) => f.size > 10 * 1024 * 1024);
                     if (tooBig) {
@@ -593,6 +597,11 @@ export function GetHelpForm() {
                     e.target.value = "";
                   }}
                 />
+                {!orgKnown && (
+                  <p className="mt-2 text-xs" style={{ color: "#6B6F76" }}>
+                    Only verified partners are allowed to add attachments.
+                  </p>
+                )}
                 {files.length > 0 && (
                   <ul className="mt-2 space-y-1 text-sm">
                     {files.map((f, idx) => (
