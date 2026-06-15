@@ -180,6 +180,10 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      is_recent_support_submission_draft: {
+        Args: { _submission_id: string }
+        Returns: boolean
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
