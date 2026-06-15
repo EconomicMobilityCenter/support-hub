@@ -25,6 +25,16 @@ export type SubmissionInput = z.infer<typeof baseSchema>;
 export type HelpType = z.infer<typeof helpTypeEnum>;
 export type Severity = z.infer<typeof severityEnum>;
 
+const attachmentUploadSchema = z.object({
+  submissionId: z.string().uuid(),
+  orgId: z.string().trim().min(1).max(200),
+  fileName: z.string().trim().min(1).max(255),
+  contentType: z.string().trim().max(200).optional().nullable(),
+  fileSize: z.number().int().positive().max(10 * 1024 * 1024),
+});
+
+const allowedAttachmentName = /\.(png|jpg|jpeg|gif|webp|heic|pdf|doc|docx|xls|xlsx|csv|txt)$/i;
+
 const SEVERITY_LABELS: Record<Severity, string> = {
   nice_to_have: "Not blocking — would be nice to fix",
   workaround: "Inconvenient but I have a workaround",
@@ -255,4 +265,46 @@ export const createDraftSubmission = createServerFn({ method: "POST" })
       throw new Error("Failed to create draft submission");
     }
     return { id: row.id as string };
+  });
+
+export const createAttachmentUploadUrl = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => attachmentUploadSchema.parse(data))
+  .handler(async ({ data }) => {
+    if (data.orgId === "public") {
+      throw new Error("Only verified partners are allowed to add attachments");
+    }
+    if (!allowedAttachmentName.test(data.fileName)) {
+      throw new Error("This attachment file type is not allowed");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: draft, error: draftError } = await supabaseAdmin
+      .from("support_submissions")
+      .select("id, status, created_at")
+      .eq("id", data.submissionId)
+      .eq("status", "draft")
+      .single();
+
+    if (draftError || !draft) {
+      console.error("createAttachmentUploadUrl draft lookup failed", draftError);
+      throw new Error("Couldn't prepare upload. Please try again.");
+    }
+
+    const createdAt = new Date(draft.created_at).getTime();
+    if (!Number.isFinite(createdAt) || createdAt < Date.now() - 60 * 60 * 1000) {
+      throw new Error("Upload session expired. Please try again.");
+    }
+
+    const safeName = data.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `submissions/${data.submissionId}/${safeName}`;
+    const { data: signed, error } = await supabaseAdmin.storage
+      .from("support-attachments")
+      .createSignedUploadUrl(path);
+
+    if (error || !signed?.token) {
+      console.error("createSignedUploadUrl failed", error);
+      throw new Error("Couldn't prepare upload. Please try again.");
+    }
+
+    return { path: signed.path ?? path, token: signed.token };
   });
