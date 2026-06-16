@@ -492,6 +492,27 @@ export function GetHelpForm() {
             </div>
           )}
 
+          {/* Option E — Feedback and Requests */}
+          {helpType === "E" && (
+            <div className="space-y-3 pt-4 border-t" style={{ borderColor: "#F0F1F3" }}>
+              <p className="text-sm" style={{ color: "#6B6F76" }}>
+                Share feedback, ideas, or feature requests with our team. We'll review
+                every submission.
+              </p>
+              <div>
+                <label className={labelClass}>Your feedback or request{reqStar}</label>
+                <textarea
+                  className={inputClass + " min-h-[140px]"}
+                  style={inputBorder}
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  maxLength={5000}
+                  required
+                />
+              </div>
+            </div>
+          )}
+
           {/* Option B */}
           {helpType === "B" && (
             <div className="space-y-4 pt-4 border-t" style={{ borderColor: "#F0F1F3" }}>
