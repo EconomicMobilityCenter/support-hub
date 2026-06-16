@@ -1,34 +1,30 @@
-## Goal
+## Add "Feedback and Requests" option to Get Help form
 
-When the email queue processor hits a send failure (transient retry, 429 rate-limit, 403 forbidden, or DLQ move), post a message to the Slack `#error-notifications` channel so the team gets real-time visibility.
+### 1. Form UI (`src/components/get-help-form.tsx`)
+- Add `HelpType` value `"E"` with label **"Feedback and Requests"** to `HELP_OPTIONS`.
+- Render an open comment textarea when `helpType === "E"` (same shape as Option A/D — single required field, max 5000 chars).
+- Treat `E` as a `support`-type submission (no severity, no attachments).
+- Reuse the existing confirmation dialog ("Thanks for your submission!").
 
-## Slack message format
+### 2. Server submission (`src/lib/submissions.functions.ts`)
+- Extend the `helpTypeEnum` to include `"E"`.
+- Add `PATH_LABELS.E = "Feedback and Request"` so the existing support-submission email renders with a proper subject/label and includes the comment in the summary.
+- After the email is enqueued, call a new helper `appendFeedbackToSheet(...)` (fire-and-forget, wrapped in try/catch so Sheet failures never break the submission).
 
-```
-🚨 Support Portal
-Time: 2026-06-16 14:32:08 UTC
-Recipient: user@example.com
-Template: support-submission-notification
-Failure type: transient | rate_limited | forbidden | dlq
-Error: <error message, truncated to 500 chars>
-```
+### 3. Google Sheets integration
+- Link the **Google Sheets** connector (requires user approval via `standard_connectors--connect`). No Google Sheets connection currently exists in this workspace.
+- New file `src/lib/google-sheets.server.ts` exporting `appendFeedbackRow({ timestamp, name, partner, email, priority, description })`.
+- Uses the connector gateway (`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/{id}/values/{range}:append?valueInputOption=USER_ENTERED`) with `LOVABLE_API_KEY` + `GOOGLE_SHEETS_API_KEY` headers.
+- Spreadsheet ID: `1wPynzW8YlYkol956ymhTyRE5bwWxLr8_CL7L0TIbiWw`. Target tab gid `1572056046` — we'll resolve the sheet name once via a `GET /spreadsheets/{id}` call and hardcode the resulting tab name as a constant (gid isn't directly usable in A1 notation).
+- Row order appended: `[Timestamp ISO, Name, Partner, Email, "" (Priority blank), Description]`.
 
-## Implementation
+### 4. Slack notifications
+- No change. Existing email-failure Slack alert already covers send failures. Sheet append failures are logged to console only (out of scope to alert on).
 
-1. **Link Slack connection** — link the existing "Economic Mobility Center Slack" workspace connection to this project so `SLACK_API_KEY` is available to server code.
+### Files touched
+- edit `src/components/get-help-form.tsx`
+- edit `src/lib/submissions.functions.ts`
+- new `src/lib/google-sheets.server.ts`
 
-2. **New helper** `src/lib/slack-notify.server.ts`
-   - `notifyEmailError({ queue, recipient, template, failureType, error })` — posts to `#error-notifications` via the Lovable connector gateway (`https://connector-gateway.lovable.dev/slack/api/chat.postMessage`) using `LOVABLE_API_KEY` + `SLACK_API_KEY`.
-   - Wrapped in try/catch — Slack failures must never break the email processor.
-   - Channel name `#error-notifications` is hard-coded; the gateway resolves it.
-
-3. **Wire into `src/routes/lovable/email/queue/process.ts`**
-   - After each `email_send_log` insert with `status: 'failed'` or `status: 'dlq'`, call `notifyEmailError(...)` with the right `failureType` (`transient`, `rate_limited`, `forbidden`, `dlq`).
-   - Fire-and-forget (await but inside try/catch) so a Slack outage doesn't stall the queue worker.
-
-## Out of scope
-
-- No new tables, no migrations.
-- No UI changes.
-- No notifications for successful sends or suppression list hits.
-- No de-dupe/throttling on the Slack side — if you want that later we can add a cooldown using `email_send_state`.
+### Open question
+The target tab's exact **sheet name** (the text label on the tab, not the gid) — I can look it up automatically the first time I call the Sheets API after the connector is linked, or you can tell me now (e.g. "Feedback", "Requests", "Sheet1"). I'll proceed by auto-detecting unless you specify.
