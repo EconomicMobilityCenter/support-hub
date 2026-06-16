@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const helpTypeEnum = z.enum(["A", "B", "C", "D"]);
+const helpTypeEnum = z.enum(["A", "B", "C", "D", "E"]);
 const severityEnum = z.enum(["nice_to_have", "workaround", "blocking", "urgent"]);
 
 const baseSchema = z.object({
@@ -47,6 +47,7 @@ const PATH_LABELS: Record<HelpType, string> = {
   B: "Report not delivered",
   C: "Data missing or wrong",
   D: "Other",
+  E: "Feedback and Requests",
 };
 
 function humanizeKey(k: string): string {
@@ -258,6 +259,23 @@ export const submitForm = createServerFn({ method: "POST" })
       }
     } catch (err) {
       console.error("submission email send failed", err);
+    }
+
+    // Feedback & Requests path: also append a row to the tracking Google Sheet.
+    if (data.helpType === "E") {
+      try {
+        const { appendFeedbackRow } = await import("@/lib/google-sheets.server");
+        await appendFeedbackRow({
+          timestamp: new Date().toISOString(),
+          name: data.contactName,
+          partner: data.orgName ?? data.partner ?? "",
+          email: data.contactEmail,
+          priority: "",
+          description: data.summary,
+        });
+      } catch (err) {
+        console.error("feedback sheet append failed", err);
+      }
     }
 
     return { id: row!.id, helpType: data.helpType };

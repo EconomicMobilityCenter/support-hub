@@ -31,13 +31,14 @@ import {
 } from "@/lib/submissions.functions";
 import { supabase } from "@/integrations/supabase/client";
 
-type HelpType = "A" | "B" | "C" | "D";
+type HelpType = "A" | "B" | "C" | "D" | "E";
 
 const HELP_OPTIONS: { value: HelpType; label: string }[] = [
   { value: "A", label: "I have a question" },
   { value: "B", label: "My report wasn't delivered" },
   { value: "C", label: "Data is missing or looks wrong" },
   { value: "D", label: "Other" },
+  { value: "E", label: "Feedback and Requests" },
 ];
 
 const SEVERITY_OPTIONS: { value: SubmissionInput["severity"]; label: string }[] = [
@@ -117,6 +118,9 @@ export function GetHelpForm() {
   // A/D
   const [question, setQuestion] = useState("");
 
+  // E
+  const [feedback, setFeedback] = useState("");
+
   // B
   const [expectedDate, setExpectedDate] = useState<Date | undefined>();
   const [severity, setSeverity] = useState<SubmissionInput["severity"] | "">("");
@@ -174,6 +178,12 @@ export function GetHelpForm() {
         return null;
       }
       summary = question.trim();
+    } else if (helpType === "E") {
+      if (!feedback.trim()) {
+        setError("Please share your feedback or request.");
+        return null;
+      }
+      summary = feedback.trim();
     } else if (helpType === "B") {
       if (!expectedDate) {
         setError("Please pick the date this report should have been delivered.");
@@ -308,6 +318,10 @@ export function GetHelpForm() {
     D: {
       title: "Thanks for your submission!",
       body: "A team member will be reaching out in 1–2 business days to help you out.",
+    },
+    E: {
+      title: "Thanks for your feedback!",
+      body: "We've logged your feedback and a team member will review it.",
     },
   };
 
@@ -471,6 +485,27 @@ export function GetHelpForm() {
                   style={inputBorder}
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
+                  maxLength={5000}
+                  required
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Option E — Feedback and Requests */}
+          {helpType === "E" && (
+            <div className="space-y-3 pt-4 border-t" style={{ borderColor: "#F0F1F3" }}>
+              <p className="text-sm" style={{ color: "#6B6F76" }}>
+                Share feedback, ideas, or feature requests with our team. We'll review
+                every submission.
+              </p>
+              <div>
+                <label className={labelClass}>Your feedback or request{reqStar}</label>
+                <textarea
+                  className={inputClass + " min-h-[140px]"}
+                  style={inputBorder}
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
                   maxLength={5000}
                   required
                 />
