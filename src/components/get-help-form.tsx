@@ -31,13 +31,14 @@ import {
 } from "@/lib/submissions.functions";
 import { supabase } from "@/integrations/supabase/client";
 
-type HelpType = "A" | "B" | "C" | "D";
+type HelpType = "A" | "B" | "C" | "D" | "E";
 
 const HELP_OPTIONS: { value: HelpType; label: string }[] = [
   { value: "A", label: "I have a question" },
   { value: "B", label: "My report wasn't delivered" },
   { value: "C", label: "Data is missing or looks wrong" },
   { value: "D", label: "Other" },
+  { value: "E", label: "Feedback and Requests" },
 ];
 
 const SEVERITY_OPTIONS: { value: SubmissionInput["severity"]; label: string }[] = [
@@ -117,6 +118,9 @@ export function GetHelpForm() {
   // A/D
   const [question, setQuestion] = useState("");
 
+  // E
+  const [feedback, setFeedback] = useState("");
+
   // B
   const [expectedDate, setExpectedDate] = useState<Date | undefined>();
   const [severity, setSeverity] = useState<SubmissionInput["severity"] | "">("");
@@ -174,6 +178,12 @@ export function GetHelpForm() {
         return null;
       }
       summary = question.trim();
+    } else if (helpType === "E") {
+      if (!feedback.trim()) {
+        setError("Please share your feedback or request.");
+        return null;
+      }
+      summary = feedback.trim();
     } else if (helpType === "B") {
       if (!expectedDate) {
         setError("Please pick the date this report should have been delivered.");
