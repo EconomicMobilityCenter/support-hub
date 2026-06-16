@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const helpTypeEnum = z.enum(["A", "B", "C", "D"]);
+const helpTypeEnum = z.enum(["A", "B", "C", "D", "E"]);
 const severityEnum = z.enum(["nice_to_have", "workaround", "blocking", "urgent"]);
 
 const baseSchema = z.object({
@@ -47,6 +47,7 @@ const PATH_LABELS: Record<HelpType, string> = {
   B: "Report not delivered",
   C: "Data missing or wrong",
   D: "Other",
+  E: "Feedback and Requests",
 };
 
 function humanizeKey(k: string): string {
