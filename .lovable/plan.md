@@ -1,26 +1,34 @@
-## Problem
+## Goal
 
-Form submissions save to the database but no email is sent. The current server function just `console.log`s the email body with a "will be wired to Lovable Emails once the project's sender domain is configured" comment.
+When the email queue processor hits a send failure (transient retry, 429 rate-limit, 403 forbidden, or DLQ move), post a message to the Slack `#error-notifications` channel so the team gets real-time visibility.
 
-## Plan
+## Slack message format
 
-1. **Set up Lovable email infrastructure** using a default Lovable sender subdomain (no DNS setup required from you). This creates the email queue, send log, and processing route.
+```
+🚨 Support Portal
+Time: 2026-06-16 14:32:08 UTC
+Recipient: user@example.com
+Template: support-submission-notification
+Failure type: transient | rate_limited | forbidden | dlq
+Error: <error message, truncated to 500 chars>
+```
 
-2. **Scaffold app email templates** and add a new template `support-submission-notification` that renders the submission details (path/type, contact name + email, partner, campus, product, severity, summary, and any extra `details` fields) in a clean branded layout matching the EMC styling.
+## Implementation
 
-3. **Wire the send into `submitForm`** in `src/lib/submissions.functions.ts`:
-   - After the row is saved, enqueue the email through the Lovable email send route (server-side, using the service role).
-   - Recipient: `support@economicmobilitycenter.org` for every submission (per your answer).
-   - Subject: keep the existing `[EMC Support] <path> — <summary>` format, prefixed with `[URGENT]` when severity is `urgent`/`blocking` or path is "Report not delivered".
-   - Set `reply_to` to the submitter's email so you can reply directly from the notification.
-   - Idempotency key derived from the submission ID so retries don't duplicate.
-   - Remove the `console.log`-only stub.
+1. **Link Slack connection** — link the existing "Economic Mobility Center Slack" workspace connection to this project so `SLACK_API_KEY` is available to server code.
 
-4. **Keep all existing behavior**: draft submission creation, attachment uploads, finalize step, success modal, validation, and field logic stay untouched. Only the post-save notification path changes.
+2. **New helper** `src/lib/slack-notify.server.ts`
+   - `notifyEmailError({ queue, recipient, template, failureType, error })` — posts to `#error-notifications` via the Lovable connector gateway (`https://connector-gateway.lovable.dev/slack/api/chat.postMessage`) using `LOVABLE_API_KEY` + `SLACK_API_KEY`.
+   - Wrapped in try/catch — Slack failures must never break the email processor.
+   - Channel name `#error-notifications` is hard-coded; the gateway resolves it.
 
-5. **Verify**: submit a test form, confirm the row in `support_submissions`, confirm a `sent` row in `email_send_log`, and confirm the email arrives at support@economicmobilitycenter.org.
+3. **Wire into `src/routes/lovable/email/queue/process.ts`**
+   - After each `email_send_log` insert with `status: 'failed'` or `status: 'dlq'`, call `notifyEmailError(...)` with the right `failureType` (`transient`, `rate_limited`, `forbidden`, `dlq`).
+   - Fire-and-forget (await but inside try/catch) so a Slack outage doesn't stall the queue worker.
 
-## Notes
+## Out of scope
 
-- Using the default Lovable sender means the From address will be a Lovable-managed no-reply address; replies go to the submitter via `reply_to`. You can switch to a branded `notify.economicmobilitycenter.org` sender later without changing any app code — just add the domain and the same templates keep working.
-- No new secrets are needed; `LOVABLE_API_KEY` and the service role key are already configured.
+- No new tables, no migrations.
+- No UI changes.
+- No notifications for successful sends or suppression list hits.
+- No de-dupe/throttling on the Slack side — if you want that later we can add a cooldown using `email_send_state`.
