@@ -1,6 +1,7 @@
 import { sendLovableEmail } from '@lovable.dev/email-js'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createFileRoute } from '@tanstack/react-router'
+import { notifyEmailError, type EmailFailureType } from '@/lib/slack-notify.server'
 
 const MAX_RETRIES = 5
 const DEFAULT_BATCH_SIZE = 10
@@ -48,6 +49,13 @@ async function moveToDlq(
     recipient_email: payload.to,
     status: 'dlq',
     error_message: reason,
+  })
+  await notifyEmailError({
+    queue,
+    recipient: typeof payload.to === 'string' ? payload.to : null,
+    template: (typeof payload.label === 'string' ? payload.label : null) ?? queue,
+    failureType: 'dlq',
+    error: reason,
   })
   const { error } = await supabase.rpc('move_to_dlq', {
     source_queue: queue,
