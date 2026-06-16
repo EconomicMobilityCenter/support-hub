@@ -1,7 +1,7 @@
 import { sendLovableEmail } from '@lovable.dev/email-js'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createFileRoute } from '@tanstack/react-router'
-import { notifyEmailError, type EmailFailureType } from '@/lib/slack-notify.server'
+import { notifyEmailError } from '@/lib/slack-notify.server'
 
 const MAX_RETRIES = 5
 const DEFAULT_BATCH_SIZE = 10
