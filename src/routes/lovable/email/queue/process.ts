@@ -282,6 +282,13 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
                   status: 'failed',
                   error_message: errorMsg.slice(0, 1000),
                 })
+                await notifyEmailError({
+                  queue,
+                  recipient: payload.to,
+                  template: payload.label || queue,
+                  failureType: 'rate_limited',
+                  error: errorMsg,
+                })
 
                 const retryAfterSecs = getRetryAfterSeconds(error)
                 await supabase
@@ -312,6 +319,13 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
                 recipient_email: payload.to,
                 status: 'failed',
                 error_message: errorMsg.slice(0, 1000),
+              })
+              await notifyEmailError({
+                queue,
+                recipient: payload.to,
+                template: payload.label || queue,
+                failureType: 'transient',
+                error: errorMsg,
               })
               if (payload?.message_id && typeof payload.message_id === 'string') {
                 failedAttemptsByMessageId.set(payload.message_id, failedAttempts + 1)
