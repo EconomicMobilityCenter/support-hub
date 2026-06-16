@@ -261,6 +261,23 @@ export const submitForm = createServerFn({ method: "POST" })
       console.error("submission email send failed", err);
     }
 
+    // Feedback & Requests path: also append a row to the tracking Google Sheet.
+    if (data.helpType === "E") {
+      try {
+        const { appendFeedbackRow } = await import("@/lib/google-sheets.server");
+        await appendFeedbackRow({
+          timestamp: new Date().toISOString(),
+          name: data.contactName,
+          partner: data.orgName ?? data.partner ?? "",
+          email: data.contactEmail,
+          priority: "",
+          description: data.summary,
+        });
+      } catch (err) {
+        console.error("feedback sheet append failed", err);
+      }
+    }
+
     return { id: row!.id, helpType: data.helpType };
   });
 
