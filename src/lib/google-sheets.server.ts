@@ -19,10 +19,10 @@ export async function appendFeedbackRow(row: FeedbackRow): Promise<void> {
     throw new Error("Missing Google Sheets connector credentials");
   }
 
-  const range = `${SHEET_TAB}!A:F`;
-  const url = `${GATEWAY_URL}/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(
-    range,
-  )}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  // Do NOT encodeURIComponent the full range — the Sheets API rejects %3A for the
+  // `!` and `:` separators. Only escape spaces in the sheet name.
+  const range = `${SHEET_TAB.replace(/ /g, "%20")}!A:F`;
+  const url = `${GATEWAY_URL}/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
 
   const res = await fetch(url, {
     method: "POST",
