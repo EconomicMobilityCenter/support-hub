@@ -1,6 +1,7 @@
 import { sendLovableEmail } from '@lovable.dev/email-js'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createFileRoute } from '@tanstack/react-router'
+import { notifyEmailError } from '@/lib/slack-notify.server'
 
 const MAX_RETRIES = 5
 const DEFAULT_BATCH_SIZE = 10
@@ -48,6 +49,13 @@ async function moveToDlq(
     recipient_email: payload.to,
     status: 'dlq',
     error_message: reason,
+  })
+  await notifyEmailError({
+    queue,
+    recipient: typeof payload.to === 'string' ? payload.to : null,
+    template: (typeof payload.label === 'string' ? payload.label : null) ?? queue,
+    failureType: 'dlq',
+    error: reason,
   })
   const { error } = await supabase.rpc('move_to_dlq', {
     source_queue: queue,
@@ -274,6 +282,13 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
                   status: 'failed',
                   error_message: errorMsg.slice(0, 1000),
                 })
+                await notifyEmailError({
+                  queue,
+                  recipient: payload.to,
+                  template: payload.label || queue,
+                  failureType: 'rate_limited',
+                  error: errorMsg,
+                })
 
                 const retryAfterSecs = getRetryAfterSeconds(error)
                 await supabase
@@ -304,6 +319,13 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
                 recipient_email: payload.to,
                 status: 'failed',
                 error_message: errorMsg.slice(0, 1000),
+              })
+              await notifyEmailError({
+                queue,
+                recipient: payload.to,
+                template: payload.label || queue,
+                failureType: 'transient',
+                error: errorMsg,
               })
               if (payload?.message_id && typeof payload.message_id === 'string') {
                 failedAttemptsByMessageId.set(payload.message_id, failedAttempts + 1)
