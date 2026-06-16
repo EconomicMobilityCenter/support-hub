@@ -319,6 +319,10 @@ export function GetHelpForm() {
       title: "Thanks for your submission!",
       body: "A team member will be reaching out in 1–2 business days to help you out.",
     },
+    E: {
+      title: "Thanks for your feedback!",
+      body: "We've logged your feedback and a team member will review it.",
+    },
   };
 
   return (
