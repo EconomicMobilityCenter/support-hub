@@ -1,49 +1,58 @@
-## Diagnosis
+## What's changing
 
-GitHub is still connected — the repo `EconomicMobilityCenter/EMC-Support-Resources` is reachable. The problem is that **the repo was reorganized** and `src/lib/content.functions.ts` is still looking at the old (flat) layout, so it returns 0 items and 0 orgs. That's why on `/?org=garland-isd` the partner shows but the products list / dropdowns are empty.
+Replace the email + Google-Sheet notification flow with Jira ticket creation, routed by product using `Configuration/feedback-routing.json` from the EMC-Support-Resources GitHub repo.
 
-**Old layout (what the loader expects):**
-```text
-/<slug>.md
-/orgs.json
-/README.md
-```
+## Behavior
 
-**New layout (what the repo actually has now):**
-```text
-/Configuration/orgs.json
-/Configuration/feedback-routing.json
-/Products/CCMR-WW/ccmr-faqs-md
-/Products/CCMR-WW/ccmr-intro-video.md
-/Products/CCMR-WW/ccmr-one-page-orientation.md
-/Products/CCMR-WW/ccmr-tab-reference-guide.md
-/README.md
-```
+1. User submits a Get Help form (any option A–E).
+2. Server looks up the selected product slug in `feedback-routing.json`.
+   - Match → use that route's `jiraEpic`, `issueType`, and `labels`.
+   - No match (or no product selected) → use the `_fallback` entry (epic `PROD-244`, label `unrouted`).
+3. Server creates a Jira issue in that project (parent = epic) with:
+   - **Summary**: short summary from the form (path-prefixed, e.g. `[Data missing] …`).
+   - **Description (ADF)**: contact name/email, partner, campus, product, severity, path, all `details` fields, plus signed URLs for any attachments uploaded to Supabase Storage (the existing signed-URL flow stays).
+   - **Labels**: from routing config + a path tag (`question`, `report-missing`, `data-issue`, `feedback`, etc.).
+4. The created issue key and browse URL are stored on the `support_submissions` row (new columns `jira_key`, `jira_url`, `jira_error`).
+5. Confirmation modal shows the Jira key to the submitter ("Tracking ID: PROD-1234").
 
-So `GET /contents?ref=main` now returns only `Configuration/`, `Products/`, `README.md` — no `.md` files at the root and no `orgs.json` at the root → `items: []`, `orgs: {}`.
+## Product field is now required
 
-## Fix
+Because routing depends on product, the Product dropdown becomes required for every submission. If the user's org has only one product it's preselected (current behavior). Admin/internal users must pick one.
 
-Edit `src/lib/content.functions.ts` only. No other files touched.
+## What's removed
 
-1. **Load orgs from the new path.** Change the orgs.json fetch URL to `https://raw.githubusercontent.com/EconomicMobilityCenter/EMC-Support-Resources/main/Configuration/orgs.json`.
+- The transactional email send (`support-submission-notification`) — no longer fired on submit.
+- The Google Sheets append for Option E — Jira is now the system of record.
 
-2. **Recursively walk `Products/`** (and keep tolerating any future root-level `.md` files):
-   - List `/contents?ref=main`.
-   - For each entry: if `type === "file"` and (ends with `.md` or matches the existing `ccmr-faqs-md` exception), fetch via raw; if `type === "dir"` and the directory is `Products` (or any directory other than `Configuration`), recurse one level into it and apply the same file rule. One level of recursion is enough for the current `Products/<product>/<file>.md` shape; we can deepen later if needed.
-   - Keep `SKIP` for `README.md`. We no longer need to skip `orgs.json` at the root since it isn't there.
-   - Slug stays as the filename without `.md` / `-md` suffix (unchanged), so existing content keys keep working.
+The email template files and Google Sheets helper stay in the repo (unused) so we can revive them later if needed; nothing about email infrastructure or the Slack failure channel is removed.
 
-3. **Cache + error handling unchanged.** Still 10-min in-memory cache, still returns `{ items: [], orgs: {}, error }` on failure.
+## What's kept
 
-4. **No schema, no UI, no route changes.** `useOrg`, `useContent`, the home page, and the Get Help form already consume `ContentBundle` correctly — they just need the loader to actually return data.
+- Draft submission row + signed-URL attachment upload flow.
+- `support_submissions` table as the durable log of every submission.
+- Form UI, branching logic, validation (plus the new product-required rule).
 
-### Files touched
-- edit `src/lib/content.functions.ts`
+## Technical details
 
-### Verification
-After the edit: reload `/?org=garland-isd`. The server function response should include `garland-isd` in `orgs` with `products: ["ccmr-weekly-workbook"]`, and `items` should contain the four CCMR-WW entries. The "Your products" card and the Get Help product dropdown should populate.
+### Secrets
+Three new secrets via `add_secret`:
+- `JIRA_SITE` — e.g. `economicmobilitycenter.atlassian.net`
+- `JIRA_EMAIL` — Atlassian account email used to mint the API token
+- `JIRA_API_TOKEN` — Atlassian API token (https://id.atlassian.com/manage-profile/security/api-tokens)
 
-### Not in scope
-- The "Feedback and Requests" Google Sheets work from the prior turn is unaffected.
-- I'm not changing how products are declared in `src/lib/products.ts` — `ccmr-weekly-workbook` is already in the catalog.
+### Migration
+Add to `support_submissions`: `jira_key text`, `jira_url text`, `jira_error text`.
+
+### Files
+- `src/lib/content.functions.ts` — also fetch `Configuration/feedback-routing.json`; expose `feedbackRouting` on the bundle.
+- `src/lib/jira.server.ts` (new) — `createJiraIssue({ route, summary, descriptionAdf, labels })` using Basic auth (`email:token`) against `/rest/api/3/issue`, with the epic key set as `fields.parent.key`. Derives project key from epic prefix.
+- `src/lib/submissions.functions.ts` — after the row insert/update, look up the route, build the ADF description (including signed attachment URLs), call `createJiraIssue`, update the row with `jira_key`/`jira_url`/`jira_error`. Remove the email enqueue + sheets append. Return `{ id, helpType, jiraKey, jiraUrl }`.
+- `src/components/get-help-form.tsx` — mark Product required (validate in `buildPayload`); show the Jira key in the confirmation dialog when present.
+
+### Failure handling
+A Jira API failure does NOT block submission — the row is still saved and `jira_error` is populated; the confirmation modal falls back to the existing copy. Existing Slack failure-notification connector stays wired up for catastrophic errors via the standard console-error path.
+
+## Out of scope
+- No two-way sync (Jira → portal).
+- No native Jira attachment upload (attachments still live in Supabase Storage; links are embedded in the description). We can add Jira attachment upload as a follow-up.
+- No change to the public webhook / cron surface.

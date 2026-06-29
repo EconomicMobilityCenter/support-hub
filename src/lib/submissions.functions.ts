@@ -57,46 +57,24 @@ function humanizeKey(k: string): string {
     .replace(/^\w/, (c) => c.toUpperCase());
 }
 
-function buildTemplateData(data: SubmissionInput, submittedAt: Date) {
-  const isUrgent =
-    data.helpType === "B" ||
-    (data.helpType === "C" && (data.severity === "urgent" || data.severity === "blocking"));
-  const pathLabel = PATH_LABELS[data.helpType];
-
-  const detailLines: Array<{ label: string; value: string }> = [];
-  if (data.details) {
-    for (const [k, v] of Object.entries(data.details)) {
-      if (v == null || v === "") continue;
-      const label = humanizeKey(k);
-      if (Array.isArray(v)) {
-        if (v.length === 0) continue;
-        detailLines.push({
-          label,
-          value: v.map((item) => (typeof item === "string" ? item : JSON.stringify(item))).join(", "),
-        });
-      } else {
-        detailLines.push({
-          label,
-          value: typeof v === "string" ? v : JSON.stringify(v),
-        });
-      }
+function detailsToFields(details: Record<string, unknown> | undefined): Array<{ label: string; value: string }> {
+  const out: Array<{ label: string; value: string }> = [];
+  if (!details) return out;
+  for (const [k, v] of Object.entries(details)) {
+    if (v == null || v === "") continue;
+    if (k === "attachmentPaths" || k === "submissionId") continue;
+    const label = humanizeKey(k);
+    if (Array.isArray(v)) {
+      if (v.length === 0) continue;
+      out.push({
+        label,
+        value: v.map((i) => (typeof i === "string" ? i : JSON.stringify(i))).join(", "),
+      });
+    } else {
+      out.push({ label, value: typeof v === "string" ? v : JSON.stringify(v) });
     }
   }
-
-  return {
-    pathLabel,
-    helpType: data.helpType,
-    isUrgent,
-    contactName: data.contactName,
-    contactEmail: data.contactEmail,
-    partner: data.orgName ?? data.partner ?? undefined,
-    campus: data.campus ?? undefined,
-    product: data.product ?? undefined,
-    severityLabel: data.severity ? SEVERITY_LABELS[data.severity] : undefined,
-    summary: data.summary,
-    submittedAt: submittedAt.toISOString(),
-    detailLines,
-  };
+  return out;
 }
 
 export const submitForm = createServerFn({ method: "POST" })
@@ -147,138 +125,108 @@ export const submitForm = createServerFn({ method: "POST" })
       throw new Error("Failed to save submission");
     }
 
-    // Best-effort email notification — render and enqueue directly.
-    // The /lovable/email/transactional/send route requires a signed-in user;
-    // form submitters are anonymous so we enqueue here using the admin client.
+    // Route to Jira based on product slug. Failures are non-blocking.
+    let jiraKey: string | null = null;
+    let jiraUrl: string | null = null;
+    let jiraError: string | null = null;
     try {
-      const [{ render }, React, { template }] = await Promise.all([
-        import("@react-email/components"),
-        import("react"),
-        import("@/lib/email-templates/support-submission-notification"),
-      ]);
-      const templateData: Record<string, unknown> = buildTemplateData(data, new Date());
-
-      // List attachments uploaded against this submission and create signed URLs.
-      try {
-        const folder = `submissions/${row!.id}`;
-        const { data: files } = await supabaseAdmin.storage
-          .from("support-attachments")
-          .list(folder, { limit: 100 });
-        if (files && files.length > 0) {
-          const paths = files
-            .filter((f) => f.name && !f.name.startsWith("."))
-            .map((f) => `${folder}/${f.name}`);
-          if (paths.length > 0) {
-            const { data: signed } = await supabaseAdmin.storage
-              .from("support-attachments")
-              .createSignedUrls(paths, 60 * 60 * 24 * 7);
-            if (signed) {
-              templateData.attachments = signed
-                .filter((s) => s.signedUrl)
-                .map((s) => ({
-                  name: s.path?.split("/").pop() ?? "attachment",
-                  url: s.signedUrl as string,
-                }));
+      const [{ getContentBundleForServer }, { createJiraIssue, buildDescriptionAdf, PATH_LABEL_TAG, PATH_SUMMARY_PREFIX }] =
+        await Promise.all([
+          import("@/lib/content.functions"),
+          import("@/lib/jira.server"),
+        ]);
+      const content = await getContentBundleForServer();
+      const productKey = data.product ?? "";
+      const route =
+        content.feedbackRouting[productKey] ??
+        content.feedbackRouting["_fallback"];
+      if (!route) {
+        jiraError = "No feedback routing configured (missing _fallback)";
+      } else {
+        // Collect signed attachment URLs (if any) for the Jira description.
+        const attachments: Array<{ name: string; url: string }> = [];
+        try {
+          const folder = `submissions/${row!.id}`;
+          const { data: files } = await supabaseAdmin.storage
+            .from("support-attachments")
+            .list(folder, { limit: 100 });
+          if (files && files.length > 0) {
+            const paths = files
+              .filter((f) => f.name && !f.name.startsWith("."))
+              .map((f) => `${folder}/${f.name}`);
+            if (paths.length > 0) {
+              const { data: signed } = await supabaseAdmin.storage
+                .from("support-attachments")
+                .createSignedUrls(paths, 60 * 60 * 24 * 30);
+              if (signed) {
+                for (const s of signed) {
+                  if (s.signedUrl)
+                    attachments.push({
+                      name: s.path?.split("/").pop() ?? "attachment",
+                      url: s.signedUrl,
+                    });
+                }
+              }
             }
           }
+        } catch (attachErr) {
+          console.error("attachment signed URL generation failed", attachErr);
         }
-      } catch (attachErr) {
-        console.error("attachment signed URL generation failed", attachErr);
-      }
 
-      const element = React.createElement(template.component, templateData);
-      const [html, text] = await Promise.all([
-        render(element),
-        render(element, { plainText: true }),
-      ]);
-      const subject =
-        typeof template.subject === "function"
-          ? template.subject(templateData)
-          : template.subject;
-      const messageId = `support-submission-${row!.id}`;
-      // Get or create an unsubscribe token for the recipient (required by Lovable Emails).
-      const recipientLc = template.to!.toLowerCase();
-      let unsubscribeToken: string | undefined;
-      const { data: existingTok } = await supabaseAdmin
-        .from("email_unsubscribe_tokens")
-        .select("token, used_at")
-        .eq("email", recipientLc)
-        .maybeSingle();
-      if (existingTok && !existingTok.used_at) {
-        unsubscribeToken = existingTok.token;
-      } else {
-        const newTok = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-        await supabaseAdmin
-          .from("email_unsubscribe_tokens")
-          .upsert(
-            { token: newTok, email: recipientLc },
-            { onConflict: "email", ignoreDuplicates: true },
-          );
-        const { data: storedTok } = await supabaseAdmin
-          .from("email_unsubscribe_tokens")
-          .select("token")
-          .eq("email", recipientLc)
-          .maybeSingle();
-        unsubscribeToken = storedTok?.token ?? newTok;
-      }
-      await supabaseAdmin.from("email_send_log").insert({
-        message_id: messageId,
-        template_name: "support-submission-notification",
-        recipient_email: template.to!,
-        status: "pending",
-      });
-      const { error: enqueueError } = await supabaseAdmin.rpc("enqueue_email", {
-        queue_name: "transactional_emails",
-        payload: {
-          message_id: messageId,
-          to: template.to!,
-          from: "EMC Support <noreply@support.economicmobilitycenter.org>",
-          sender_domain: "notify.support.economicmobilitycenter.org",
-          subject,
-          html,
-          text,
-          purpose: "transactional",
-          label: "support-submission-notification",
-          idempotency_key: messageId,
-          reply_to: data.contactEmail,
-          unsubscribe_token: unsubscribeToken,
-          queued_at: new Date().toISOString(),
-        } as never,
-      });
-      if (enqueueError) {
-        console.error("submission email enqueue failed", enqueueError);
-        await supabaseAdmin.from("email_send_log").insert({
-          message_id: messageId,
-          template_name: "support-submission-notification",
-          recipient_email: template.to!,
-          status: "failed",
-          error_message: enqueueError.message?.slice(0, 1000) ?? "enqueue failed",
+        const fields: Array<{ label: string; value: string }> = [
+          { label: "Path", value: PATH_LABELS[data.helpType] },
+          { label: "Submitted by", value: `${data.contactName} <${data.contactEmail}>` },
+        ];
+        if (data.orgName || data.partner)
+          fields.push({ label: "Partner", value: data.orgName ?? data.partner ?? "" });
+        if (data.campus) fields.push({ label: "Campus", value: data.campus });
+        if (data.product) fields.push({ label: "Product", value: data.product });
+        if (data.severity)
+          fields.push({ label: "Severity", value: SEVERITY_LABELS[data.severity] });
+        fields.push({ label: "Submission ID", value: row!.id });
+        fields.push(...detailsToFields(data.details));
+
+        const descriptionAdf = buildDescriptionAdf({
+          fields,
+          body: data.summary,
+          attachments,
         });
+
+        const summary = `${PATH_SUMMARY_PREFIX[data.helpType] ?? ""} ${data.summary}`.trim();
+        const result = await createJiraIssue({
+          route,
+          summary,
+          descriptionAdf,
+          extraLabels: [PATH_LABEL_TAG[data.helpType] ?? "support"],
+        });
+        if (result.ok) {
+          jiraKey = result.key;
+          jiraUrl = result.url;
+        } else {
+          jiraError = result.error;
+          console.error("Jira create failed", result.error);
+        }
       }
     } catch (err) {
-      console.error("submission email send failed", err);
+      jiraError = err instanceof Error ? err.message : "Jira create failed";
+      console.error("Jira routing failed", err);
     }
 
-    // Feedback & Requests path: also append a row to the tracking Google Sheet.
-    if (data.helpType === "E") {
-      try {
-        const { appendFeedbackRow } = await import("@/lib/google-sheets.server");
-        await appendFeedbackRow({
-          timestamp: new Date().toISOString(),
-          name: data.contactName,
-          partner: data.orgName ?? data.partner ?? "",
-          email: data.contactEmail,
-          priority: "",
-          description: data.summary,
-        });
-      } catch (err) {
-        console.error("feedback sheet append failed", err);
-      }
-    }
+    await supabaseAdmin
+      .from("support_submissions")
+      .update({
+        jira_key: jiraKey,
+        jira_url: jiraUrl,
+        jira_error: jiraError,
+      })
+      .eq("id", row!.id);
 
-    return { id: row!.id, helpType: data.helpType };
+    return {
+      id: row!.id,
+      helpType: data.helpType,
+      jiraKey,
+      jiraUrl,
+    };
   });
 
 // Creates a short-lived draft submission row used to authorize attachment uploads.
