@@ -157,6 +157,8 @@ export function GetHelpForm() {
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [lastHelpType, setLastHelpType] = useState<HelpType | null>(null);
+  const [lastJiraKey, setLastJiraKey] = useState<string | null>(null);
+  const [lastJiraUrl, setLastJiraUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!org) return;
@@ -185,8 +187,10 @@ export function GetHelpForm() {
 
   const mutation = useMutation({
     mutationFn: (input: SubmissionInput) => submit({ data: input }),
-    onSuccess: (_data, vars) => {
+    onSuccess: (data, vars) => {
       setLastHelpType(vars.helpType);
+      setLastJiraKey((data as { jiraKey?: string | null }).jiraKey ?? null);
+      setLastJiraUrl((data as { jiraUrl?: string | null }).jiraUrl ?? null);
       setConfirmOpen(true);
     },
   });
@@ -203,6 +207,10 @@ export function GetHelpForm() {
     }
     if (!helpType) {
       setError("Please tell us how we can help.");
+      return null;
+    }
+    if (!product.trim()) {
+      setError("Please select a product so we can route your request.");
       return null;
     }
 
