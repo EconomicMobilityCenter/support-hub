@@ -113,10 +113,16 @@ export function GetHelpForm() {
   const availableProducts = useMemo(() => {
     if (!orgKnown) return PRODUCTS.map((p) => ({ slug: p.slug, name: p.name }));
     const productSlugs = org!.products?.includes("all")
-      ? PRODUCTS.map((p) => p.slug)
+      ? Array.from(
+          new Set(
+            Object.values(contentData.orgs)
+              .flatMap((o) => o.products ?? [])
+              .filter((slug) => slug && slug !== "all"),
+          ),
+        )
       : (org!.products ?? []);
     return productSlugs.map((slug) => ({ slug, name: productName(slug) }));
-  }, [org, orgKnown]);
+  }, [org, orgKnown, contentData.orgs]);
 
   // Basic info
   const [contactName, setContactName] = useState(org?.contactName ?? "");
