@@ -3,11 +3,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { getContent, type ContentBundle } from "@/lib/content.functions";
 
 const EMPTY: ContentBundle = { items: [], orgs: {} };
+const CONTENT_QUERY_VERSION = 2;
 
 export function useContent(): { data: ContentBundle; isLoading: boolean; error: string | null } {
   const fetchContent = useServerFn(getContent);
   const query = useQuery({
-    queryKey: ["content"],
+    queryKey: ["content", CONTENT_QUERY_VERSION],
     queryFn: () => fetchContent(),
     staleTime: Infinity,
     gcTime: Infinity,
