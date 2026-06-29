@@ -22,6 +22,15 @@ export type OrgConfig = {
   contactEmail?: string;
 };
 
+export type FeedbackRoute = {
+  label: string;
+  jiraEpic: string;
+  slackChannel?: string;
+  issueType?: string;
+  defaultStatus?: string;
+  labels?: string[];
+};
+
 type RawOrgConfig = {
   name?: string;
   displayName?: string;
@@ -60,6 +69,7 @@ function normalizeOrg(id: string, v: RawOrgConfig): OrgConfig {
 export type ContentBundle = {
   items: ContentItem[];
   orgs: Record<string, OrgConfig>;
+  feedbackRouting: Record<string, FeedbackRoute>;
   error?: string;
 };
 
@@ -196,11 +206,31 @@ async function fetchBundle(): Promise<ContentBundle> {
       console.warn(`[content] orgs.json fetch failed: ${orgsRes.status}`);
     }
 
-    return { items, orgs };
+    let feedbackRouting: Record<string, FeedbackRoute> = {};
+    try {
+      const routingRes = await fetch(
+        `https://raw.githubusercontent.com/${REPO}/${BRANCH}/Configuration/feedback-routing.json`,
+      );
+      if (routingRes.ok) {
+        const rawText = await routingRes.text();
+        feedbackRouting =
+          parseJsonWithMissingClosingBraceRepair<Record<string, FeedbackRoute>>(rawText);
+      } else {
+        console.warn(`[content] feedback-routing.json fetch failed: ${routingRes.status}`);
+      }
+    } catch (err) {
+      console.warn(
+        "[content] Failed to load feedback-routing.json:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+
+    return { items, orgs, feedbackRouting };
   } catch (err) {
     return {
       items: [],
       orgs: {},
+      feedbackRouting: {},
       error: err instanceof Error ? err.message : "Failed to load content",
     };
   }
