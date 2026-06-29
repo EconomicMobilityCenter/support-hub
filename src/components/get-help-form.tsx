@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -101,9 +101,13 @@ export function GetHelpForm() {
 
   const orgKnown = !!org;
   const attachmentsAllowed = orgKnown || orgLoading;
-  const availableProducts = orgKnown
-    ? (org!.products ?? []).map((slug) => ({ slug, name: productName(slug) }))
-    : PRODUCTS.map((p) => ({ slug: p.slug, name: p.name }));
+  const availableProducts = useMemo(() => {
+    if (!orgKnown) return PRODUCTS.map((p) => ({ slug: p.slug, name: p.name }));
+    const productSlugs = org!.products?.includes("all")
+      ? PRODUCTS.map((p) => p.slug)
+      : (org!.products ?? []);
+    return productSlugs.map((slug) => ({ slug, name: productName(slug) }));
+  }, [org, orgKnown]);
 
   // Basic info
   const [contactName, setContactName] = useState(org?.contactName ?? "");
@@ -138,6 +142,31 @@ export function GetHelpForm() {
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [lastHelpType, setLastHelpType] = useState<HelpType | null>(null);
+
+  useEffect(() => {
+    if (!org) return;
+    setContactName((current) => current || org.contactName || "");
+    setContactEmail((current) => current || org.contactEmail || "");
+  }, [org]);
+
+  useEffect(() => {
+    if (!orgKnown) return;
+    const requestedProduct = search.product;
+    const requestedIsAvailable = requestedProduct
+      ? availableProducts.some((p) => p.slug === requestedProduct)
+      : false;
+    if (requestedProduct && requestedIsAvailable) {
+      setProduct(requestedProduct);
+      return;
+    }
+    if (availableProducts.length === 1) {
+      setProduct(availableProducts[0].slug);
+      return;
+    }
+    setProduct((current) =>
+      current && availableProducts.some((p) => p.slug === current) ? current : "",
+    );
+  }, [availableProducts, orgKnown, search.product]);
 
   const mutation = useMutation({
     mutationFn: (input: SubmissionInput) => submit({ data: input }),

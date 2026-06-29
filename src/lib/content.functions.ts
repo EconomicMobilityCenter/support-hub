@@ -31,6 +31,22 @@ type RawOrgConfig = {
   contact?: { name?: string; email?: string; label?: string };
 };
 
+function parseJsonWithMissingClosingBraceRepair<T>(raw: string): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch (initialError) {
+    const withoutTrailingCommas = raw.replace(/,\s*([}\]])/g, "$1");
+    const opens = (withoutTrailingCommas.match(/{/g) ?? []).length;
+    const closes = (withoutTrailingCommas.match(/}/g) ?? []).length;
+    const repaired = withoutTrailingCommas.trimEnd() + "}".repeat(Math.max(0, opens - closes));
+    try {
+      return JSON.parse(repaired) as T;
+    } catch {
+      throw initialError;
+    }
+  }
+}
+
 function normalizeOrg(id: string, v: RawOrgConfig): OrgConfig {
   return {
     id,
@@ -164,7 +180,8 @@ async function fetchBundle(): Promise<ContentBundle> {
     );
     if (orgsRes.ok) {
       try {
-        const raw = (await orgsRes.json()) as Record<string, RawOrgConfig>;
+        const rawText = await orgsRes.text();
+        const raw = parseJsonWithMissingClosingBraceRepair<Record<string, RawOrgConfig>>(rawText);
         orgs = Object.fromEntries(
           Object.entries(raw).map(([id, v]) => [id, normalizeOrg(id, v)]),
         );
