@@ -87,29 +87,68 @@ async function fetchBundle(): Promise<ContentBundle> {
   }
 
   try {
-    const listRes = await fetch(
-      `https://api.github.com/repos/${REPO}/contents?ref=${BRANCH}`,
-      { headers },
-    );
-    if (!listRes.ok) {
-      return { items: [], orgs: {}, error: `Content list ${listRes.status}` };
+    const SKIP = new Set(["README.md"]);
+    const isContentFile = (name: string) =>
+      name.endsWith(".md") || name === "ccmr-faqs-md";
+
+    type Entry = { name: string; path: string; type: string };
+
+    async function listDir(path: string): Promise<Entry[]> {
+      const url = path
+        ? `https://api.github.com/repos/${REPO}/contents/${path}?ref=${BRANCH}`
+        : `https://api.github.com/repos/${REPO}/contents?ref=${BRANCH}`;
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error(`Content list ${res.status} for /${path}`);
+      const json = (await res.json()) as Entry[];
+      return Array.isArray(json) ? json : [];
     }
-    const list = (await listRes.json()) as Array<{ name: string; type: string }>;
-    const SKIP = new Set(["README.md", "orgs.json"]);
-    const mdFiles = Array.isArray(list)
-      ? list.filter(
-          (e) =>
-            e.type === "file" &&
-            !SKIP.has(e.name) &&
-            (e.name.endsWith(".md") || e.name === "ccmr-faqs-md"),
-        )
-      : [];
+
+    const rootEntries = await listDir("");
+    const fileEntries: Entry[] = [];
+    const subdirs: Entry[] = [];
+    for (const e of rootEntries) {
+      if (e.type === "file" && !SKIP.has(e.name) && isContentFile(e.name)) {
+        fileEntries.push(e);
+      } else if (e.type === "dir" && e.name !== "Configuration") {
+        subdirs.push(e);
+      }
+    }
+    // Recurse one level into product/content subdirectories (e.g. Products/CCMR-WW).
+    const nested = await Promise.all(
+      subdirs.map(async (d) => {
+        try {
+          const inner = await listDir(d.path);
+          const out: Entry[] = [];
+          for (const e of inner) {
+            if (e.type === "file" && !SKIP.has(e.name) && isContentFile(e.name)) {
+              out.push(e);
+            } else if (e.type === "dir") {
+              try {
+                const deeper = await listDir(e.path);
+                for (const f of deeper) {
+                  if (f.type === "file" && !SKIP.has(f.name) && isContentFile(f.name)) {
+                    out.push(f);
+                  }
+                }
+              } catch (err) {
+                console.warn(`[content] list ${e.path} failed:`, err);
+              }
+            }
+          }
+          return out;
+        } catch (err) {
+          console.warn(`[content] list ${d.path} failed:`, err);
+          return [];
+        }
+      }),
+    );
+    for (const list of nested) fileEntries.push(...list);
 
     const items: ContentItem[] = [];
     await Promise.all(
-      mdFiles.map(async (f) => {
+      fileEntries.map(async (f) => {
         const r = await fetch(
-          `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${f.name}`,
+          `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${f.path}`,
         );
         if (!r.ok) return;
         const raw = await r.text();
@@ -121,7 +160,7 @@ async function fetchBundle(): Promise<ContentBundle> {
 
     let orgs: Record<string, OrgConfig> = {};
     const orgsRes = await fetch(
-      `https://raw.githubusercontent.com/${REPO}/${BRANCH}/orgs.json`,
+      `https://raw.githubusercontent.com/${REPO}/${BRANCH}/Configuration/orgs.json`,
     );
     if (orgsRes.ok) {
       try {

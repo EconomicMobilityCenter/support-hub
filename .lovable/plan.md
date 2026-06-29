@@ -1,30 +1,49 @@
-## Add "Feedback and Requests" option to Get Help form
+## Diagnosis
 
-### 1. Form UI (`src/components/get-help-form.tsx`)
-- Add `HelpType` value `"E"` with label **"Feedback and Requests"** to `HELP_OPTIONS`.
-- Render an open comment textarea when `helpType === "E"` (same shape as Option A/D — single required field, max 5000 chars).
-- Treat `E` as a `support`-type submission (no severity, no attachments).
-- Reuse the existing confirmation dialog ("Thanks for your submission!").
+GitHub is still connected — the repo `EconomicMobilityCenter/EMC-Support-Resources` is reachable. The problem is that **the repo was reorganized** and `src/lib/content.functions.ts` is still looking at the old (flat) layout, so it returns 0 items and 0 orgs. That's why on `/?org=garland-isd` the partner shows but the products list / dropdowns are empty.
 
-### 2. Server submission (`src/lib/submissions.functions.ts`)
-- Extend the `helpTypeEnum` to include `"E"`.
-- Add `PATH_LABELS.E = "Feedback and Request"` so the existing support-submission email renders with a proper subject/label and includes the comment in the summary.
-- After the email is enqueued, call a new helper `appendFeedbackToSheet(...)` (fire-and-forget, wrapped in try/catch so Sheet failures never break the submission).
+**Old layout (what the loader expects):**
+```text
+/<slug>.md
+/orgs.json
+/README.md
+```
 
-### 3. Google Sheets integration
-- Link the **Google Sheets** connector (requires user approval via `standard_connectors--connect`). No Google Sheets connection currently exists in this workspace.
-- New file `src/lib/google-sheets.server.ts` exporting `appendFeedbackRow({ timestamp, name, partner, email, priority, description })`.
-- Uses the connector gateway (`https://connector-gateway.lovable.dev/google_sheets/v4/spreadsheets/{id}/values/{range}:append?valueInputOption=USER_ENTERED`) with `LOVABLE_API_KEY` + `GOOGLE_SHEETS_API_KEY` headers.
-- Spreadsheet ID: `1wPynzW8YlYkol956ymhTyRE5bwWxLr8_CL7L0TIbiWw`. Target tab gid `1572056046` — we'll resolve the sheet name once via a `GET /spreadsheets/{id}` call and hardcode the resulting tab name as a constant (gid isn't directly usable in A1 notation).
-- Row order appended: `[Timestamp ISO, Name, Partner, Email, "" (Priority blank), Description]`.
+**New layout (what the repo actually has now):**
+```text
+/Configuration/orgs.json
+/Configuration/feedback-routing.json
+/Products/CCMR-WW/ccmr-faqs-md
+/Products/CCMR-WW/ccmr-intro-video.md
+/Products/CCMR-WW/ccmr-one-page-orientation.md
+/Products/CCMR-WW/ccmr-tab-reference-guide.md
+/README.md
+```
 
-### 4. Slack notifications
-- No change. Existing email-failure Slack alert already covers send failures. Sheet append failures are logged to console only (out of scope to alert on).
+So `GET /contents?ref=main` now returns only `Configuration/`, `Products/`, `README.md` — no `.md` files at the root and no `orgs.json` at the root → `items: []`, `orgs: {}`.
+
+## Fix
+
+Edit `src/lib/content.functions.ts` only. No other files touched.
+
+1. **Load orgs from the new path.** Change the orgs.json fetch URL to `https://raw.githubusercontent.com/EconomicMobilityCenter/EMC-Support-Resources/main/Configuration/orgs.json`.
+
+2. **Recursively walk `Products/`** (and keep tolerating any future root-level `.md` files):
+   - List `/contents?ref=main`.
+   - For each entry: if `type === "file"` and (ends with `.md` or matches the existing `ccmr-faqs-md` exception), fetch via raw; if `type === "dir"` and the directory is `Products` (or any directory other than `Configuration`), recurse one level into it and apply the same file rule. One level of recursion is enough for the current `Products/<product>/<file>.md` shape; we can deepen later if needed.
+   - Keep `SKIP` for `README.md`. We no longer need to skip `orgs.json` at the root since it isn't there.
+   - Slug stays as the filename without `.md` / `-md` suffix (unchanged), so existing content keys keep working.
+
+3. **Cache + error handling unchanged.** Still 10-min in-memory cache, still returns `{ items: [], orgs: {}, error }` on failure.
+
+4. **No schema, no UI, no route changes.** `useOrg`, `useContent`, the home page, and the Get Help form already consume `ContentBundle` correctly — they just need the loader to actually return data.
 
 ### Files touched
-- edit `src/components/get-help-form.tsx`
-- edit `src/lib/submissions.functions.ts`
-- new `src/lib/google-sheets.server.ts`
+- edit `src/lib/content.functions.ts`
 
-### Open question
-The target tab's exact **sheet name** (the text label on the tab, not the gid) — I can look it up automatically the first time I call the Sheets API after the connector is linked, or you can tell me now (e.g. "Feedback", "Requests", "Sheet1"). I'll proceed by auto-detecting unless you specify.
+### Verification
+After the edit: reload `/?org=garland-isd`. The server function response should include `garland-isd` in `orgs` with `products: ["ccmr-weekly-workbook"]`, and `items` should contain the four CCMR-WW entries. The "Your products" card and the Get Help product dropdown should populate.
+
+### Not in scope
+- The "Feedback and Requests" Google Sheets work from the prior turn is unaffected.
+- I'm not changing how products are declared in `src/lib/products.ts` — `ccmr-weekly-workbook` is already in the catalog.
