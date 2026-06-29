@@ -107,6 +107,9 @@ export type Database = {
           contact_name: string
           created_at: string
           id: string
+          jira_error: string | null
+          jira_key: string | null
+          jira_url: string | null
           org_id: string | null
           org_name: string | null
           payload: Json
@@ -120,6 +123,9 @@ export type Database = {
           contact_name: string
           created_at?: string
           id?: string
+          jira_error?: string | null
+          jira_key?: string | null
+          jira_url?: string | null
           org_id?: string | null
           org_name?: string | null
           payload?: Json
@@ -133,6 +139,9 @@ export type Database = {
           contact_name?: string
           created_at?: string
           id?: string
+          jira_error?: string | null
+          jira_key?: string | null
+          jira_url?: string | null
           org_id?: string | null
           org_name?: string | null
           payload?: Json
