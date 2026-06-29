@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useOrg } from "@/hooks/use-org";
+import { useContent } from "@/hooks/use-content";
 import { PRODUCTS, productName } from "@/lib/products";
 import {
   submitForm,
@@ -93,6 +94,7 @@ function DatePickerField({
 
 export function GetHelpForm() {
   const { org, orgId, isLoading: orgLoading } = useOrg();
+  const { data: contentData } = useContent();
   const search = useSearch({ strict: false }) as { product?: string };
   const submit = useServerFn(submitForm);
   const createDraft = useServerFn(createDraftSubmission);
@@ -100,7 +102,14 @@ export function GetHelpForm() {
   const navigate = useNavigate();
 
   const orgKnown = !!org;
+  const isAdminOrg = !!org && (org.products?.includes("all") ?? false);
   const attachmentsAllowed = orgKnown || orgLoading;
+  const partnerOptions = useMemo(() => {
+    return Object.values(contentData.orgs)
+      .filter((o) => o.id !== "public" && !(o.products?.includes("all") ?? false))
+      .map((o) => ({ id: o.id, name: o.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [contentData.orgs]);
   const availableProducts = useMemo(() => {
     if (!orgKnown) return PRODUCTS.map((p) => ({ slug: p.slug, name: p.name }));
     const productSlugs = org!.products?.includes("all")
@@ -194,7 +203,11 @@ export function GetHelpForm() {
     const type: "issue" | "support" =
       helpType === "B" || helpType === "C" ? "issue" : "support";
 
-    const partnerValue = orgKnown ? null : partner.trim() || null;
+    const partnerValue = isAdminOrg
+      ? partner.trim() || null
+      : orgKnown
+        ? null
+        : partner.trim() || null;
     const productValue = product.trim() || null;
 
     let summary = "";
@@ -415,7 +428,21 @@ export function GetHelpForm() {
             </div>
             <div>
               <label className={labelClass}>Partner</label>
-              {orgKnown ? (
+              {isAdminOrg ? (
+                <select
+                  className={inputClass}
+                  style={inputBorder}
+                  value={partner}
+                  onChange={(e) => setPartner(e.target.value)}
+                >
+                  <option value="">Select a partner</option>
+                  {partnerOptions.map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              ) : orgKnown ? (
                 <input
                   className={inputClass}
                   style={{ ...inputBorder, backgroundColor: "#F4F5F7" }}
