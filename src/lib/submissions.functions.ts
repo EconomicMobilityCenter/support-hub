@@ -212,12 +212,68 @@ export const submitForm = createServerFn({ method: "POST" })
       console.error("Jira routing failed", err);
     }
 
+    // Slack notification (non-blocking). Only post on successful Jira create
+    // so the channel reflects real tickets, not failures.
+    let slackError: string | null = null;
+    try {
+      if (jiraKey && jiraUrl) {
+        const { getContentBundleForServer } = await import("@/lib/content.functions");
+        const content = await getContentBundleForServer();
+        const productKey = data.product ?? "";
+        const route =
+          content.feedbackRouting[productKey] ??
+          content.feedbackRouting["_fallback"];
+        const channel = route?.slackChannel;
+        if (channel) {
+          const { postSlackNotification } = await import("@/lib/slack.server");
+          const productLabel = route?.label ?? data.product ?? "Unrouted";
+          const fields: Array<{ label: string; value: string }> = [
+            { label: "Path", value: PATH_LABELS[data.helpType] },
+            { label: "Product", value: productLabel },
+            {
+              label: "Submitted by",
+              value: `${data.contactName} <${data.contactEmail}>`,
+            },
+          ];
+          if (data.orgName || data.partner)
+            fields.push({ label: "Partner", value: data.orgName ?? data.partner ?? "" });
+          if (data.campus) fields.push({ label: "Campus", value: data.campus });
+          if (data.severity)
+            fields.push({ label: "Severity", value: SEVERITY_LABELS[data.severity] });
+
+          const slackRes = await postSlackNotification({
+            channel,
+            title: `:ticket: New ${PATH_LABELS[data.helpType]} — ${productLabel}`,
+            fields,
+            body: data.summary,
+            ticketKey: jiraKey,
+            ticketUrl: jiraUrl,
+          });
+          if (!slackRes.ok) {
+            slackError = slackRes.error;
+            console.error("Slack notify failed", slackRes.error);
+          }
+        }
+      }
+    } catch (err) {
+      slackError = err instanceof Error ? err.message : "Slack notify failed";
+      console.error("Slack notify threw", err);
+    }
+
     await supabaseAdmin
       .from("support_submissions")
       .update({
         jira_key: jiraKey,
         jira_url: jiraUrl,
         jira_error: jiraError,
+        payload: {
+          helpType: data.helpType,
+          partner: data.partner ?? null,
+          campus: data.campus ?? null,
+          severity: data.severity ?? null,
+          ...data.details,
+          ...(slackError ? { slack_error: slackError } : {}),
+        } as Record<string, unknown> as never,
       })
       .eq("id", row!.id);
 

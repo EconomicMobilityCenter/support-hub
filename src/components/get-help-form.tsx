@@ -807,6 +807,14 @@ export function GetHelpForm() {
               )}
             </div>
           )}
+          {!lastJiraKey && lastHelpType && (
+            <div
+              className="rounded-md border px-3 py-2 text-xs"
+              style={{ borderColor: "#F0C9C9", backgroundColor: "#FBECEC", color: "#7A1F1F" }}
+            >
+              Tracking ID unavailable — our team has been notified and will follow up directly.
+            </div>
+          )}
           <DialogFooter>
             <Button
               onClick={() => {
