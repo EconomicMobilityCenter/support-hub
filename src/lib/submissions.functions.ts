@@ -243,6 +243,7 @@ export const submitForm = createServerFn({ method: "POST" })
 
           const slackRes = await postSlackNotification({
             channel,
+            fallbackChannelNames: ["error-notifications", "support-submissions"],
             title: `:ticket: New ${PATH_LABELS[data.helpType]} — ${productLabel}`,
             fields,
             body: data.summary,
