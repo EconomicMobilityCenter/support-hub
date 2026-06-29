@@ -111,7 +111,16 @@ export function GetHelpForm() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [contentData.orgs]);
   const availableProducts = useMemo(() => {
-    if (!orgKnown) return PRODUCTS.map((p) => ({ slug: p.slug, name: p.name }));
+    const allFromContent = Array.from(
+      new Set(
+        Object.values(contentData.orgs)
+          .flatMap((o) => o.products ?? [])
+          .filter((slug) => slug && slug !== "all"),
+      ),
+    );
+    if (!orgKnown) {
+      return allFromContent.map((slug) => ({ slug, name: productName(slug) }));
+    }
     const productSlugs = org!.products?.includes("all")
       ? Array.from(
           new Set(
@@ -167,7 +176,6 @@ export function GetHelpForm() {
   }, [org]);
 
   useEffect(() => {
-    if (!orgKnown) return;
     const requestedProduct = search.product;
     const requestedIsAvailable = requestedProduct
       ? availableProducts.some((p) => p.slug === requestedProduct)
@@ -183,7 +191,7 @@ export function GetHelpForm() {
     setProduct((current) =>
       current && availableProducts.some((p) => p.slug === current) ? current : "",
     );
-  }, [availableProducts, orgKnown, search.product]);
+  }, [availableProducts, search.product]);
 
   const mutation = useMutation({
     mutationFn: (input: SubmissionInput) => submit({ data: input }),
@@ -487,8 +495,7 @@ export function GetHelpForm() {
             </div>
             <div className="sm:col-span-2">
               <label className={labelClass}>Product{reqStar}</label>
-              {orgKnown ? (
-                <select
+              <select
                   className={inputClass}
                   style={inputBorder}
                   value={product}
@@ -504,17 +511,6 @@ export function GetHelpForm() {
                     </option>
                   ))}
                 </select>
-              ) : (
-                <input
-                  className={inputClass}
-                  style={inputBorder}
-                  value={product}
-                  onChange={(e) => setProduct(e.target.value)}
-                  maxLength={200}
-                  placeholder="Product name"
-                  required
-                />
-              )}
             </div>
           </div>
         </section>
