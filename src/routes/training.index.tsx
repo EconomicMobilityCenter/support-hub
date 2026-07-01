@@ -73,12 +73,16 @@ function TrainingIndex() {
   );
 
   const groups = useMemo(() => {
-    const visible = data.items.filter(
-      (it) =>
-        it.category === "Training" &&
-        it.published !== false &&
-        (it.orgs.includes(orgId) || it.orgs.includes("all")),
-    );
+    const orgProducts = data.orgs[orgId]?.products ?? [];
+    const isAdmin = orgProducts.includes("all");
+    const allowedProducts = new Set(orgProducts);
+    const visible = data.items.filter((it) => {
+      if (it.category !== "Training" || it.published === false) return false;
+      if (isAdmin) return true;
+      if (it.product) return allowedProducts.has(it.product);
+      // Backward-compat: items without a product field fall back to orgs matching.
+      return it.orgs.includes(orgId) || it.orgs.includes("all");
+    });
     const byGroup = new Map<string, ContentItem[]>();
     for (const it of visible) {
       const arr = byGroup.get(it.group) ?? [];
@@ -91,7 +95,7 @@ function TrainingIndex() {
         items: items.sort((a, b) => a.order - b.order),
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [data.items, orgId]);
+  }, [data.items, data.orgs, orgId]);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F4F5F7" }}>

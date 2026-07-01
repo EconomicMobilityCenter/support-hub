@@ -9,6 +9,7 @@ export type ContentItem = {
   order: number;
   type: "video" | "document" | "article" | string;
   orgs: string[];
+  product?: string;
   published: boolean;
   link?: string;
   body: string;
@@ -97,6 +98,7 @@ function parseFrontmatter(raw: string, slug: string): ContentItem | null {
     order: typeof fm.order === "number" ? fm.order : Number(fm.order ?? 100),
     type: String(fm.type ?? "article"),
     orgs,
+    product: fm.product ? String(fm.product) : undefined,
     published: fm.published !== false,
     link: fm.link ? String(fm.link) : undefined,
     body: match[2] ?? "",
