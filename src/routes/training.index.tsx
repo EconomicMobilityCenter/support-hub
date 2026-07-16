@@ -73,10 +73,11 @@ function isPdfUrl(url: string): boolean {
 }
 
 function pdfEmbedHtml(url: string): string {
+  const viewerUrl = `${url}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`;
   return (
     `<div class="pdf-embed" style="margin:0.5rem 0">` +
-    `<object data="${url}" type="application/pdf" style="width:100%;height:600px;border:1px solid #E2E4E8;border-radius:8px;background:#F4F5F7">` +
-    `<iframe src="${url}" title="PDF preview" style="width:100%;height:600px;border:0"></iframe>` +
+    `<object data="${viewerUrl}" type="application/pdf" style="width:100%;height:600px;border:1px solid #E2E4E8;border-radius:8px;background:#F4F5F7">` +
+    `<iframe src="${viewerUrl}" title="PDF preview" style="width:100%;height:600px;border:0"></iframe>` +
     `</object>` +
     `<div style="margin-top:6px;font-size:0.875rem"><a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#185FA5;text-decoration:underline">Open PDF in new tab</a></div>` +
     `</div>`
