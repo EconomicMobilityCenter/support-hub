@@ -36,7 +36,6 @@ function renderMarkdown(body: string): string {
     "youtube.com",
     "www.youtube-nocookie.com",
     "youtube-nocookie.com",
-    "docs.google.com",
     "raw.githubusercontent.com",
   ]);
   DOMPurify.removeAllHooks();
@@ -53,7 +52,7 @@ function renderMarkdown(body: string): string {
     }
   });
   const clean = DOMPurify.sanitize(html, {
-    ADD_TAGS: ["iframe"],
+    ADD_TAGS: ["iframe", "object"],
     ADD_ATTR: [
       "allow",
       "allowfullscreen",
@@ -61,6 +60,8 @@ function renderMarkdown(body: string): string {
       "scrolling",
       "referrerpolicy",
       "title",
+      "data",
+      "type",
     ],
   });
   return embedPdfs(clean);
@@ -70,15 +71,12 @@ function isPdfUrl(url: string): boolean {
   return /\.pdf(\?|#|$)/i.test(url);
 }
 
-function pdfViewerUrl(url: string): string {
-  return `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(url)}`;
-}
-
 function pdfEmbedHtml(url: string): string {
-  const viewer = pdfViewerUrl(url);
   return (
     `<div class="pdf-embed" style="margin:0.5rem 0">` +
-    `<iframe src="${viewer}" title="PDF preview" style="width:100%;height:600px;border:1px solid #E2E4E8;border-radius:8px;background:#F4F5F7"></iframe>` +
+    `<object data="${url}" type="application/pdf" style="width:100%;height:600px;border:1px solid #E2E4E8;border-radius:8px;background:#F4F5F7">` +
+    `<iframe src="${url}" title="PDF preview" style="width:100%;height:600px;border:0"></iframe>` +
+    `</object>` +
     `<div style="margin-top:6px;font-size:0.875rem"><a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#185FA5;text-decoration:underline">Open PDF in new tab</a></div>` +
     `</div>`
   );
