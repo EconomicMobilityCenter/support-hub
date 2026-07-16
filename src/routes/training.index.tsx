@@ -17,6 +17,7 @@ import {
 import { useOrg } from "@/hooks/use-org";
 import { useContent } from "@/hooks/use-content";
 import type { ContentItem } from "@/lib/content.functions";
+import { PdfViewer } from "@/components/pdf-viewer";
 
 export const Route = createFileRoute("/training/")({
   head: () => ({
@@ -36,8 +37,6 @@ function renderMarkdown(body: string): string {
     "youtube.com",
     "www.youtube-nocookie.com",
     "youtube-nocookie.com",
-    "raw.githubusercontent.com",
-    "cdn.jsdelivr.net",
   ]);
   DOMPurify.removeAllHooks();
   DOMPurify.addHook("uponSanitizeElement", (node, data) => {
@@ -53,7 +52,7 @@ function renderMarkdown(body: string): string {
     }
   });
   const clean = DOMPurify.sanitize(html, {
-    ADD_TAGS: ["iframe", "object"],
+    ADD_TAGS: ["iframe"],
     ADD_ATTR: [
       "allow",
       "allowfullscreen",
@@ -61,43 +60,30 @@ function renderMarkdown(body: string): string {
       "scrolling",
       "referrerpolicy",
       "title",
-      "data",
-      "type",
     ],
   });
-  return embedPdfs(clean);
+  return clean;
 }
 
 function isPdfUrl(url: string): boolean {
   return /\.pdf(\?|#|$)/i.test(url);
 }
 
-function pdfEmbedHtml(url: string): string {
-  const viewerUrl = `${url}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`;
-  return (
-    `<div class="pdf-embed" style="margin:0.5rem 0">` +
-    `<object data="${viewerUrl}" type="application/pdf" style="width:100%;height:600px;border:1px solid #E2E4E8;border-radius:8px;background:#F4F5F7">` +
-    `<iframe src="${viewerUrl}" title="PDF preview" style="width:100%;height:600px;border:0"></iframe>` +
-    `</object>` +
-    `<div style="margin-top:6px;font-size:0.875rem"><a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#185FA5;text-decoration:underline">Open PDF in new tab</a></div>` +
-    `</div>`
-  );
-}
-
-function embedPdfs(html: string): string {
-  if (typeof document === "undefined") return html;
+// Extract PDF URLs referenced from the markdown body (via <img src> or a solo
+// paragraph <a href>) and strip those nodes from the HTML so they don't render
+// as broken images or duplicate links alongside the PDF viewer.
+function extractPdfUrls(html: string): { html: string; pdfUrls: string[] } {
+  if (typeof document === "undefined") return { html, pdfUrls: [] };
   const container = document.createElement("div");
   container.innerHTML = html;
-  // Replace <img src="*.pdf"> with an embedded viewer.
+  const pdfUrls: string[] = [];
   container.querySelectorAll("img").forEach((img) => {
     const src = img.getAttribute("src") ?? "";
     if (isPdfUrl(src)) {
-      const wrapper = document.createElement("div");
-      wrapper.innerHTML = pdfEmbedHtml(src);
-      img.replaceWith(wrapper.firstElementChild ?? wrapper);
+      pdfUrls.push(src);
+      img.remove();
     }
   });
-  // Replace <a href="*.pdf"> where it's the sole content of its paragraph.
   container.querySelectorAll("a").forEach((a) => {
     const href = a.getAttribute("href") ?? "";
     if (!isPdfUrl(href)) return;
@@ -108,26 +94,26 @@ function embedPdfs(html: string): string {
       parent.childNodes.length === 1 &&
       parent.firstChild === a;
     if (soloInPara) {
-      const wrapper = document.createElement("div");
-      wrapper.innerHTML = pdfEmbedHtml(href);
-      parent.replaceWith(wrapper.firstElementChild ?? wrapper);
+      pdfUrls.push(href);
+      parent.remove();
     }
   });
-  return container.innerHTML;
+  return { html: container.innerHTML, pdfUrls };
 }
 
 function TrainingIndex() {
   const { orgId } = useOrg();
   const { data, isLoading, error } = useContent();
   const [active, setActive] = useState<ContentItem | null>(null);
-  const activeHtml = useMemo(() => {
-    if (!active) return "";
-    const linkIsPdf = active.link && isPdfUrl(active.link);
+  const activeContent = useMemo(() => {
+    if (!active) return { html: "", pdfUrls: [] as string[] };
     const bodyHtml = renderMarkdown(active.body ?? "");
-    if (linkIsPdf && !/\.pdf/i.test(active.body ?? "")) {
-      return pdfEmbedHtml(active.link!) + bodyHtml;
+    const { html, pdfUrls } = extractPdfUrls(bodyHtml);
+    const linkIsPdf = active.link && isPdfUrl(active.link);
+    if (linkIsPdf && !pdfUrls.includes(active.link!)) {
+      pdfUrls.unshift(active.link!);
     }
-    return bodyHtml;
+    return { html, pdfUrls };
   }, [active]);
 
   const groups = useMemo(() => {
@@ -239,9 +225,12 @@ function TrainingIndex() {
             <DialogTitle className="text-[#00005c]">{active?.title}</DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto pr-2">
+            {activeContent.pdfUrls.map((url) => (
+              <PdfViewer key={url} url={url} />
+            ))}
             <div
               className="prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: activeHtml }}
+              dangerouslySetInnerHTML={{ __html: activeContent.html }}
             />
           </div>
         </DialogContent>
