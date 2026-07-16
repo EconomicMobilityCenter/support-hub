@@ -123,6 +123,7 @@ function ActionCard({
   return (
     <Link
       to={to}
+      search={(prev: Record<string, unknown>) => prev}
       className="group block rounded-xl border bg-card p-5 transition-shadow hover:shadow-sm"
       style={{ borderColor: "#E2E4E8" }}
     >

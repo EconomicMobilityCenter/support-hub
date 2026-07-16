@@ -16,6 +16,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-10" style={{ backgroundColor: "#042C53" }}>
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-3">
         <Link to="/" className="flex items-center gap-2.5">
+        {/* preserve org */}
           <img
             src={emcLogo.url}
             alt="Economic Mobility Center"
