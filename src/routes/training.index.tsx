@@ -37,6 +37,7 @@ function renderMarkdown(body: string): string {
     "www.youtube-nocookie.com",
     "youtube-nocookie.com",
     "raw.githubusercontent.com",
+    "cdn.jsdelivr.net",
   ]);
   DOMPurify.removeAllHooks();
   DOMPurify.addHook("uponSanitizeElement", (node, data) => {
