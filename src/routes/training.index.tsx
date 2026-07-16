@@ -118,7 +118,8 @@ function TrainingIndex() {
 
   const groups = useMemo(() => {
     const orgProducts = data.orgs[orgId]?.products ?? [];
-    const isAdmin = orgProducts.includes("all");
+    // Public visitors (no ?org=) and "all"-product orgs see everything.
+    const isAdmin = orgId === "public" || orgProducts.includes("all");
     const allowedProducts = new Set(orgProducts);
     const visible = data.items.filter((it) => {
       if (it.category !== "Training" || it.published === false) return false;
