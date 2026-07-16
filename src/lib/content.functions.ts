@@ -77,6 +77,7 @@ export type ContentBundle = {
 const REPO = "EconomicMobilityCenter/EMC-Support-Resources";
 const BRANCH = "main";
 const TTL_MS = 10 * 60 * 1000;
+const FAILURE_BACKOFF_MS = 60 * 1000;
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
 // Rewritten asset URLs go through jsDelivr's GitHub CDN so browsers can
 // render PDFs/images inline. raw.githubusercontent.com sends X-Frame-Options:
@@ -84,6 +85,8 @@ const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
 const ASSET_BASE = `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}`;
 
 let cache: { data: ContentBundle; expiresAt: number } | null = null;
+let lastGood: ContentBundle | null = null;
+let failUntil = 0;
 
 function resolveRelative(url: string, dir: string): string {
   if (!url) return url;
@@ -273,8 +276,24 @@ async function fetchBundle(): Promise<ContentBundle> {
 export async function getContentBundleForServer(): Promise<ContentBundle> {
   const now = Date.now();
   if (cache && cache.expiresAt > now) return cache.data;
+  // Negative cache: while a recent failure is fresh, serve last-good bundle
+  // (with the error attached) instead of hammering GitHub.
+  if (failUntil > now && lastGood) {
+    return { ...lastGood, error: lastGood.error ?? "Using cached content" };
+  }
   const data = await fetchBundle();
-  cache = { data, expiresAt: now + TTL_MS };
+  const failed = data.error || data.items.length === 0;
+  if (!failed) {
+    cache = { data, expiresAt: now + TTL_MS };
+    lastGood = data;
+    failUntil = 0;
+    return data;
+  }
+  // Fetch failed — back off and, if we have prior good data, serve it.
+  failUntil = now + FAILURE_BACKOFF_MS;
+  if (lastGood) {
+    return { ...lastGood, error: data.error ?? "Content temporarily unavailable" };
+  }
   return data;
 }
 
