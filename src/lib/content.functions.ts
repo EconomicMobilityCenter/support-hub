@@ -78,13 +78,17 @@ const REPO = "EconomicMobilityCenter/EMC-Support-Resources";
 const BRANCH = "main";
 const TTL_MS = 10 * 60 * 1000;
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
+// Rewritten asset URLs go through jsDelivr's GitHub CDN so browsers can
+// render PDFs/images inline. raw.githubusercontent.com sends X-Frame-Options:
+// deny and Content-Type: application/octet-stream, which blocks embedding.
+const ASSET_BASE = `https://cdn.jsdelivr.net/gh/${REPO}@${BRANCH}`;
 
 let cache: { data: ContentBundle; expiresAt: number } | null = null;
 
 function resolveRelative(url: string, dir: string): string {
   if (!url) return url;
   if (/^(https?:|mailto:|tel:|data:|#|\/\/)/i.test(url)) return url;
-  if (url.startsWith("/")) return `${RAW_BASE}${url}`;
+  if (url.startsWith("/")) return `${ASSET_BASE}${url}`;
   // Resolve ./ and ../ against dir
   const parts = dir ? dir.split("/") : [];
   const segs = url.split("/");
@@ -93,7 +97,7 @@ function resolveRelative(url: string, dir: string): string {
     if (s === "..") parts.pop();
     else parts.push(s);
   }
-  return `${RAW_BASE}/${parts.join("/")}`;
+  return `${ASSET_BASE}/${parts.join("/")}`;
 }
 
 function rewriteRelativeUrls(body: string, dir: string): string {
