@@ -88,6 +88,46 @@ let cache: { data: ContentBundle; expiresAt: number } | null = null;
 let lastGood: ContentBundle | null = null;
 let failUntil = 0;
 
+type GitHubTreeEntry = { path: string; type: string };
+
+function githubHeaders(includeAuth = true): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "emc-support-hub",
+  };
+  if (includeAuth && process.env.GITHUB_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
+  return headers;
+}
+
+async function fetchGitHubApi(url: string): Promise<Response> {
+  const authed = await fetch(url, { headers: githubHeaders(true) });
+  if ((authed.status === 401 || authed.status === 403) && process.env.GITHUB_TOKEN) {
+    console.warn(`[content] GitHub authed request failed with ${authed.status}; retrying public request`);
+    return fetch(url, { headers: githubHeaders(false) });
+  }
+  return authed;
+}
+
+async function fetchRawText(path: string): Promise<string | null> {
+  const r = await fetch(`${RAW_BASE}/${path}`);
+  if (!r.ok) {
+    console.warn(`[content] raw fetch failed ${r.status} for ${path}`);
+    return null;
+  }
+  return r.text();
+}
+
+function contentSlug(path: string): string {
+  const name = path.includes("/") ? path.slice(path.lastIndexOf("/") + 1) : path;
+  return name.replace(/\.md$/, "").replace(/-md$/, "");
+}
+
+function contentDir(path: string): string {
+  return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+}
+
 function resolveRelative(url: string, dir: string): string {
   if (!url) return url;
   if (/^(https?:|mailto:|tel:|data:|#|\/\/)/i.test(url)) return url;
@@ -140,95 +180,43 @@ function parseFrontmatter(raw: string, slug: string, dir: string): ContentItem |
 }
 
 async function fetchBundle(): Promise<ContentBundle> {
-  const headers: Record<string, string> = {
-    Accept: "application/vnd.github+json",
-    "User-Agent": "emc-support-hub",
-  };
-  if (process.env.GITHUB_TOKEN) {
-    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-  }
-
   try {
     const SKIP = new Set(["README.md"]);
-    const isContentFile = (name: string) =>
-      name.endsWith(".md") || name === "ccmr-faqs-md";
+    const isContentPath = (path: string) => {
+      const name = path.includes("/") ? path.slice(path.lastIndexOf("/") + 1) : path;
+      return !path.startsWith("Configuration/") && !SKIP.has(name) && (name.endsWith(".md") || name === "ccmr-faqs-md");
+    };
 
-    type Entry = { name: string; path: string; type: string };
-
-    async function listDir(path: string): Promise<Entry[]> {
-      const url = path
-        ? `https://api.github.com/repos/${REPO}/contents/${path}?ref=${BRANCH}`
-        : `https://api.github.com/repos/${REPO}/contents?ref=${BRANCH}`;
-      const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error(`Content list ${res.status} for /${path}`);
-      const json = (await res.json()) as Entry[];
-      return Array.isArray(json) ? json : [];
+    const treeUrl = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`;
+    const treeRes = await fetchGitHubApi(treeUrl);
+    if (!treeRes.ok) {
+      throw new Error(`Content tree ${treeRes.status} from GitHub`);
     }
-
-    const rootEntries = await listDir("");
-    const fileEntries: Entry[] = [];
-    const subdirs: Entry[] = [];
-    for (const e of rootEntries) {
-      if (e.type === "file" && !SKIP.has(e.name) && isContentFile(e.name)) {
-        fileEntries.push(e);
-      } else if (e.type === "dir" && e.name !== "Configuration") {
-        subdirs.push(e);
-      }
+    const treeJson = (await treeRes.json()) as { tree?: GitHubTreeEntry[]; truncated?: boolean };
+    if (treeJson.truncated) {
+      console.warn("[content] GitHub tree response was truncated; some content may be missing");
     }
-    // Recurse one level into product/content subdirectories (e.g. Products/CCMR-WW).
-    const nested = await Promise.all(
-      subdirs.map(async (d) => {
-        try {
-          const inner = await listDir(d.path);
-          const out: Entry[] = [];
-          for (const e of inner) {
-            if (e.type === "file" && !SKIP.has(e.name) && isContentFile(e.name)) {
-              out.push(e);
-            } else if (e.type === "dir") {
-              try {
-                const deeper = await listDir(e.path);
-                for (const f of deeper) {
-                  if (f.type === "file" && !SKIP.has(f.name) && isContentFile(f.name)) {
-                    out.push(f);
-                  }
-                }
-              } catch (err) {
-                console.warn(`[content] list ${e.path} failed:`, err);
-              }
-            }
-          }
-          return out;
-        } catch (err) {
-          console.warn(`[content] list ${d.path} failed:`, err);
-          return [];
-        }
-      }),
-    );
-    for (const list of nested) fileEntries.push(...list);
+    const filePaths = (treeJson.tree ?? [])
+      .filter((entry) => entry.type === "blob" && isContentPath(entry.path))
+      .map((entry) => entry.path);
 
     const items: ContentItem[] = [];
     await Promise.all(
-      fileEntries.map(async (f) => {
-        const r = await fetch(
-          `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${f.path}`,
-        );
-        if (!r.ok) return;
-        const raw = await r.text();
-        const slug = f.name.replace(/\.md$/, "").replace(/-md$/, "");
-        const dir = f.path.includes("/") ? f.path.slice(0, f.path.lastIndexOf("/")) : "";
+      filePaths.map(async (path) => {
+        const raw = await fetchRawText(path);
+        if (!raw) return;
+        const slug = contentSlug(path);
+        const dir = contentDir(path);
         const item = parseFrontmatter(raw, slug, dir);
         if (item) items.push(item);
       }),
     );
 
     let orgs: Record<string, OrgConfig> = {};
-    const orgsRes = await fetch(
-      `https://raw.githubusercontent.com/${REPO}/${BRANCH}/Configuration/orgs.json`,
-    );
-    if (orgsRes.ok) {
+    const orgsRaw = await fetchRawText("Configuration/orgs.json");
+    if (orgsRaw) {
       try {
-        const rawText = await orgsRes.text();
-        const raw = parseJsonWithMissingClosingBraceRepair<Record<string, RawOrgConfig>>(rawText);
+        const raw = parseJsonWithMissingClosingBraceRepair<Record<string, RawOrgConfig>>(orgsRaw);
         orgs = Object.fromEntries(
           Object.entries(raw).map(([id, v]) => [id, normalizeOrg(id, v)]),
         );
@@ -239,21 +227,14 @@ async function fetchBundle(): Promise<ContentBundle> {
         );
         orgs = {};
       }
-    } else {
-      console.warn(`[content] orgs.json fetch failed: ${orgsRes.status}`);
     }
 
     let feedbackRouting: Record<string, FeedbackRoute> = {};
     try {
-      const routingRes = await fetch(
-        `https://raw.githubusercontent.com/${REPO}/${BRANCH}/Configuration/feedback-routing.json`,
-      );
-      if (routingRes.ok) {
-        const rawText = await routingRes.text();
+      const rawText = await fetchRawText("Configuration/feedback-routing.json");
+      if (rawText) {
         feedbackRouting =
           parseJsonWithMissingClosingBraceRepair<Record<string, FeedbackRoute>>(rawText);
-      } else {
-        console.warn(`[content] feedback-routing.json fetch failed: ${routingRes.status}`);
       }
     } catch (err) {
       console.warn(
