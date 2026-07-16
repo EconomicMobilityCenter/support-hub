@@ -36,6 +36,8 @@ function renderMarkdown(body: string): string {
     "youtube.com",
     "www.youtube-nocookie.com",
     "youtube-nocookie.com",
+    "docs.google.com",
+    "raw.githubusercontent.com",
   ]);
   DOMPurify.removeAllHooks();
   DOMPurify.addHook("uponSanitizeElement", (node, data) => {
@@ -50,7 +52,7 @@ function renderMarkdown(body: string): string {
       (node as Element).remove();
     }
   });
-  return DOMPurify.sanitize(html, {
+  const clean = DOMPurify.sanitize(html, {
     ADD_TAGS: ["iframe"],
     ADD_ATTR: [
       "allow",
@@ -61,16 +63,72 @@ function renderMarkdown(body: string): string {
       "title",
     ],
   });
+  return embedPdfs(clean);
+}
+
+function isPdfUrl(url: string): boolean {
+  return /\.pdf(\?|#|$)/i.test(url);
+}
+
+function pdfViewerUrl(url: string): string {
+  return `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(url)}`;
+}
+
+function pdfEmbedHtml(url: string): string {
+  const viewer = pdfViewerUrl(url);
+  return (
+    `<div class="pdf-embed" style="margin:0.5rem 0">` +
+    `<iframe src="${viewer}" title="PDF preview" style="width:100%;height:600px;border:1px solid #E2E4E8;border-radius:8px;background:#F4F5F7"></iframe>` +
+    `<div style="margin-top:6px;font-size:0.875rem"><a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#185FA5;text-decoration:underline">Open PDF in new tab</a></div>` +
+    `</div>`
+  );
+}
+
+function embedPdfs(html: string): string {
+  if (typeof document === "undefined") return html;
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  // Replace <img src="*.pdf"> with an embedded viewer.
+  container.querySelectorAll("img").forEach((img) => {
+    const src = img.getAttribute("src") ?? "";
+    if (isPdfUrl(src)) {
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = pdfEmbedHtml(src);
+      img.replaceWith(wrapper.firstElementChild ?? wrapper);
+    }
+  });
+  // Replace <a href="*.pdf"> where it's the sole content of its paragraph.
+  container.querySelectorAll("a").forEach((a) => {
+    const href = a.getAttribute("href") ?? "";
+    if (!isPdfUrl(href)) return;
+    const parent = a.parentElement;
+    const soloInPara =
+      parent &&
+      parent.tagName === "P" &&
+      parent.childNodes.length === 1 &&
+      parent.firstChild === a;
+    if (soloInPara) {
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = pdfEmbedHtml(href);
+      parent.replaceWith(wrapper.firstElementChild ?? wrapper);
+    }
+  });
+  return container.innerHTML;
 }
 
 function TrainingIndex() {
   const { orgId } = useOrg();
   const { data, isLoading, error } = useContent();
   const [active, setActive] = useState<ContentItem | null>(null);
-  const activeHtml = useMemo(
-    () => (active ? renderMarkdown(active.body) : ""),
-    [active],
-  );
+  const activeHtml = useMemo(() => {
+    if (!active) return "";
+    const linkIsPdf = active.link && isPdfUrl(active.link);
+    const bodyHtml = renderMarkdown(active.body ?? "");
+    if (linkIsPdf && !/\.pdf/i.test(active.body ?? "")) {
+      return pdfEmbedHtml(active.link!) + bodyHtml;
+    }
+    return bodyHtml;
+  }, [active]);
 
   const groups = useMemo(() => {
     const orgProducts = data.orgs[orgId]?.products ?? [];

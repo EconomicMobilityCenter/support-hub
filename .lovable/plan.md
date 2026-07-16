@@ -1,30 +1,37 @@
-## Problem
+## Goal
 
-The Training page filters items by `it.orgs.includes(orgId)`, but the GitHub content uses `orgs: ["all"]` on every article plus a separate `product:` frontmatter field (e.g. `product: "ccmr-weekly-workbook"`). Because every item matches `"all"`, Dallas College (entitled only to `enrollment-pipeline-navigator`) still sees CCMR Weekly Workbook articles.
+When a training item's markdown references a PDF (either as `![...](...pdf)`, `[...](...pdf)`, or via the frontmatter `link:` field on a `type: "document"` item), render it inline inside the modal using an embedded PDF viewer instead of a broken image or a plain link.
 
-The org → product entitlements already live in `Configuration/orgs.json` on GitHub, so no app-side changes are needed when new orgs/products are added — we just need to actually honor those entitlements.
+## Changes
 
-## Fix
+### 1. `src/lib/content.functions.ts` — resolve relative asset paths
 
-Update `src/routes/training.index.tsx` visibility logic to filter by the item's `product` field against the current org's `products` list:
+When parsing each markdown file, capture the file's directory (e.g. `Products/EPN`) and rewrite relative markdown URLs to absolute `raw.githubusercontent.com` URLs so that `../Artifacts/EPN-Onepager.pdf` becomes a real URL the browser can load.
 
-- Add `product?: string` to `ContentItem` in `src/lib/content.functions.ts` and parse it from frontmatter.
-- In Training's `groups` memo, keep items when:
-  - `it.published !== false` AND `it.category === "Training"`, AND
-  - org's `products` contains `"all"` (internal/admin view), OR
-  - `it.product` is in org's `products`, OR
-  - item has no `product` field AND `it.orgs` includes the current `orgId` or `"all"` (backward-compat for content that hasn't been tagged with a product yet).
-- For the `public` fallback (no `?org=` on URL), use the `public` org's `products` from `orgs.json` (already lists both products), so unlinked visitors see everything published.
+- Add a small helper that scans the body for `](./x)`, `](../x)`, and `](x)` where `x` doesn't start with `http`, `#`, `mailto:`, or `/`, and rewrites to `https://raw.githubusercontent.com/EconomicMobilityCenter/EMC-Support-Resources/main/<resolved-path>`.
+- Apply to both image (`![...](...)`) and link (`[...](...)`) syntaxes.
+- Also normalize the frontmatter `link` field the same way if it looks relative.
+
+### 2. `src/routes/training.index.tsx` — embed PDFs in the modal
+
+After `marked` + `DOMPurify` runs, post-process the sanitized HTML:
+
+- Any `<img src="*.pdf">` → replace with an `<iframe>` (600px tall, full width) pointing at the same URL, plus a "Open PDF in new tab" link underneath as a fallback.
+- Any `<a href="*.pdf">` where the anchor is the only content of its paragraph → same treatment (embed + fallback link).
+
+Extend the DOMPurify allow-list to include iframes whose src host is `raw.githubusercontent.com` and `docs.google.com` (needed if we ever proxy through Google's viewer). Existing YouTube/Vimeo allow-list stays.
+
+For items whose frontmatter is `type: "document"` with a `link` ending in `.pdf`, render the iframe directly in the modal (no need to rely on body markdown).
+
+### 3. No GitHub changes required
+
+Your existing `epn-one-pager.md` with `![Enrollment Pipeline One Pager](../Artifacts/EPN-Onepager.pdf)` will Just Work after this — the relative path resolves to the raw URL and the image tag gets swapped for an embedded PDF viewer.
 
 ## Result
 
-- `/training?org=dallas-college` → only EPN articles.
-- `/training?org=garland-isd` → only CCMR Weekly Workbook articles.
-- `/training?org=internal` → all articles.
-- `/training` (no org) → both products (driven by the `public` entry in `orgs.json`).
-- Adding a new org + product mapping in GitHub `Configuration/orgs.json` + tagging content with `product:` is sufficient — no app redeploy needed.
+Clicking "One-Page Orientation" opens the modal with the PDF rendered inline (scrollable), plus a small "Open in new tab" link for users who prefer that. Any future PDF you drop in `Artifacts/` and reference from a markdown file — relative or absolute — renders the same way automatically.
 
 ## Files touched
 
-- `src/lib/content.functions.ts` — add `product` to `ContentItem` and parse it.
-- `src/routes/training.index.tsx` — replace the `orgs`-based filter with the product-entitlement filter above.
+- `src/lib/content.functions.ts` — relative-URL rewriting during frontmatter parse.
+- `src/routes/training.index.tsx` — PDF post-processing in `renderMarkdown` + iframe allow-list + `type: "document"` direct embed.

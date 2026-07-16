@@ -77,10 +77,34 @@ export type ContentBundle = {
 const REPO = "EconomicMobilityCenter/EMC-Support-Resources";
 const BRANCH = "main";
 const TTL_MS = 10 * 60 * 1000;
+const RAW_BASE = `https://raw.githubusercontent.com/${REPO}/${BRANCH}`;
 
 let cache: { data: ContentBundle; expiresAt: number } | null = null;
 
-function parseFrontmatter(raw: string, slug: string): ContentItem | null {
+function resolveRelative(url: string, dir: string): string {
+  if (!url) return url;
+  if (/^(https?:|mailto:|tel:|data:|#|\/\/)/i.test(url)) return url;
+  if (url.startsWith("/")) return `${RAW_BASE}${url}`;
+  // Resolve ./ and ../ against dir
+  const parts = dir ? dir.split("/") : [];
+  const segs = url.split("/");
+  for (const s of segs) {
+    if (s === "" || s === ".") continue;
+    if (s === "..") parts.pop();
+    else parts.push(s);
+  }
+  return `${RAW_BASE}/${parts.join("/")}`;
+}
+
+function rewriteRelativeUrls(body: string, dir: string): string {
+  // Rewrites markdown ![alt](url) and [text](url) with relative urls.
+  return body.replace(/(!?\[[^\]]*\])\(([^)\s]+)(\s+"[^"]*")?\)/g, (_m, prefix, url, title = "") => {
+    const resolved = resolveRelative(url, dir);
+    return `${prefix}(${resolved}${title})`;
+  });
+}
+
+function parseFrontmatter(raw: string, slug: string, dir: string): ContentItem | null {
   const match = raw.match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*\r?\n?([\s\S]*)$/);
   if (!match) return null;
   let fm: Record<string, unknown>;
@@ -90,6 +114,9 @@ function parseFrontmatter(raw: string, slug: string): ContentItem | null {
     return null;
   }
   const orgs = Array.isArray(fm.orgs) ? (fm.orgs as unknown[]).map(String) : [];
+  const rawLink = fm.link ? String(fm.link) : undefined;
+  const link = rawLink ? resolveRelative(rawLink, dir) : undefined;
+  const body = rewriteRelativeUrls(match[2] ?? "", dir);
   return {
     slug,
     title: String(fm.title ?? slug),
@@ -100,8 +127,8 @@ function parseFrontmatter(raw: string, slug: string): ContentItem | null {
     orgs,
     product: fm.product ? String(fm.product) : undefined,
     published: fm.published !== false,
-    link: fm.link ? String(fm.link) : undefined,
-    body: match[2] ?? "",
+    link,
+    body,
   };
 }
 
@@ -181,7 +208,8 @@ async function fetchBundle(): Promise<ContentBundle> {
         if (!r.ok) return;
         const raw = await r.text();
         const slug = f.name.replace(/\.md$/, "").replace(/-md$/, "");
-        const item = parseFrontmatter(raw, slug);
+        const dir = f.path.includes("/") ? f.path.slice(0, f.path.lastIndexOf("/")) : "";
+        const item = parseFrontmatter(raw, slug, dir);
         if (item) items.push(item);
       }),
     );
