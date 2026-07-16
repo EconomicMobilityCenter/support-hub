@@ -1,102 +1,30 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense } from "react";
 import { ClientOnly } from "@tanstack/react-router";
-import { Document, Page, pdfjs } from "react-pdf";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+const PdfViewerImpl = lazy(() => import("./pdf-viewer-impl"));
 
-function PdfViewerInner({ url }: { url: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [numPages, setNumPages] = useState<number>(0);
-  const [width, setWidth] = useState<number>(0);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const el = containerRef.current;
-    const update = () => setWidth(el.clientWidth);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  return (
-    <div className="pdf-embed" style={{ margin: "0.5rem 0" }}>
-      <div
-        ref={containerRef}
-        style={{
-          border: "1px solid #E2E4E8",
-          borderRadius: 8,
-          background: "#F4F5F7",
-          padding: 8,
-          minHeight: 200,
-        }}
-      >
-        {error ? (
-          <p style={{ color: "#6B6F76", fontSize: 14, padding: 12 }}>
-            Couldn't load PDF. Use the link below to open it in a new tab.
-          </p>
-        ) : (
-          <Document
-            file={url}
-            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-            onLoadError={(e) => setError(e.message)}
-            loading={
-              <p style={{ color: "#6B6F76", fontSize: 14, padding: 12 }}>
-                Loading PDF…
-              </p>
-            }
-          >
-            {width > 0 &&
-              Array.from({ length: numPages }, (_, i) => (
-                <div key={i} style={{ marginBottom: 8 }}>
-                  <Page
-                    pageNumber={i + 1}
-                    width={width - 16}
-                    renderAnnotationLayer={false}
-                    renderTextLayer={false}
-                  />
-                </div>
-              ))}
-          </Document>
-        )}
-      </div>
-      <div style={{ marginTop: 6, fontSize: "0.875rem" }}>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: "#185FA5", textDecoration: "underline" }}
-        >
-          Open PDF in new tab
-        </a>
-      </div>
-    </div>
-  );
-}
+const Fallback = () => (
+  <div
+    style={{
+      border: "1px solid #E2E4E8",
+      borderRadius: 8,
+      background: "#F4F5F7",
+      padding: 12,
+      color: "#6B6F76",
+      fontSize: 14,
+      margin: "0.5rem 0",
+    }}
+  >
+    Loading PDF…
+  </div>
+);
 
 export function PdfViewer({ url }: { url: string }) {
   return (
-    <ClientOnly
-      fallback={
-        <div
-          style={{
-            border: "1px solid #E2E4E8",
-            borderRadius: 8,
-            background: "#F4F5F7",
-            padding: 12,
-            color: "#6B6F76",
-            fontSize: 14,
-          }}
-        >
-          Loading PDF…
-        </div>
-      }
-    >
-      <PdfViewerInner url={url} />
+    <ClientOnly fallback={<Fallback />}>
+      <Suspense fallback={<Fallback />}>
+        <PdfViewerImpl url={url} />
+      </Suspense>
     </ClientOnly>
   );
 }
