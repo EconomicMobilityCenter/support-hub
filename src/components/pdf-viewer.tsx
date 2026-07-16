@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ClientOnly } from "@tanstack/react-router";
 import { Document, Page, pdfjs } from "react-pdf";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -12,6 +12,7 @@ function PdfViewerInner({ url }: { url: string }) {
   const [numPages, setNumPages] = useState<number>(0);
   const [width, setWidth] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<Uint8Array | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -22,6 +23,24 @@ function PdfViewerInner({ url }: { url: string }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    setError(null);
+    setData(null);
+    fetch(url, { signal: ctrl.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.arrayBuffer();
+      })
+      .then((buf) => setData(new Uint8Array(buf)))
+      .catch((e) => {
+        if (e.name !== "AbortError") setError(e.message || "fetch failed");
+      });
+    return () => ctrl.abort();
+  }, [url]);
+
+  const fileProp = useMemo(() => (data ? { data } : null), [data]);
 
   return (
     <div className="pdf-embed" style={{ margin: "0.5rem 0" }}>
@@ -37,11 +56,11 @@ function PdfViewerInner({ url }: { url: string }) {
       >
         {error ? (
           <p style={{ color: "#6B6F76", fontSize: 14, padding: 12 }}>
-            Couldn't load PDF. Use the link below to open it in a new tab.
+            Couldn't load PDF ({error}). Use the link below to open it in a new tab.
           </p>
-        ) : (
+        ) : fileProp ? (
           <Document
-            file={url}
+            file={fileProp}
             onLoadSuccess={({ numPages }) => setNumPages(numPages)}
             onLoadError={(e) => setError(e.message)}
             loading={
@@ -62,6 +81,10 @@ function PdfViewerInner({ url }: { url: string }) {
                 </div>
               ))}
           </Document>
+        ) : (
+          <p style={{ color: "#6B6F76", fontSize: 14, padding: 12 }}>
+            Loading PDF…
+          </p>
         )}
       </div>
       <div style={{ marginTop: 6, fontSize: "0.875rem" }}>

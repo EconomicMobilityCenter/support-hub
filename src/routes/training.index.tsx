@@ -220,7 +220,7 @@ function TrainingIndex() {
       </div>
 
       <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogContent className="sm:max-w-[960px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-[#00005c]">{active?.title}</DialogTitle>
           </DialogHeader>
