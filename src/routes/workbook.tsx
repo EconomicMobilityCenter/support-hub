@@ -91,12 +91,3 @@ function WorkbookPage() {
     </div>
   );
 }
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/workbook')({
-  component: RouteComponent,
-})
-
-function RouteComponent() {
-  return <div>Hello "/workbook"!</div>
-}
