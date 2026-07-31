@@ -32,7 +32,7 @@ function WorkbookPage() {
 
   return (
     <div className="bg-[#F4F5F7] min-h-screen">
-      <div className="mx-auto max-w-6xl px-6 py-6 space-y-4">
+      <div className="w-full px-3 py-4 space-y-3 sm:px-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: "#1A1A1A" }}>
@@ -61,7 +61,7 @@ function WorkbookPage() {
               src={url}
               title={title}
               className="w-full"
-              style={{ height: "calc(100vh - 190px)", minHeight: 520, border: "none" }}
+              style={{ height: "calc(100vh - 150px)", minHeight: 600, border: "none" }}
               allowFullScreen
             />
           </div>
