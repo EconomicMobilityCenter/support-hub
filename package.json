@@ -94,7 +94,6 @@
     "globals": "^15.15.0",
     "nitro": "3.0.260603-beta",
     "prettier": "^3.7.3",
-    "seroval": "^1.5.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1"
@@ -103,5 +102,9 @@
     "overrides": {
       "entities": "4.5.0"
     }
+  },
+  "overrides": {
+    "seroval": "^1.6.0",
+    "seroval-plugins": "^1.6.0"
   }
 }
