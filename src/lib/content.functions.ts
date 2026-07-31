@@ -21,6 +21,7 @@ export type OrgConfig = {
   products?: string[];
   contactName?: string;
   contactEmail?: string;
+  productUrls?: Record<string, string>;
 };
 
 export type FeedbackRoute = {
@@ -39,6 +40,9 @@ type RawOrgConfig = {
   contactName?: string;
   contactEmail?: string;
   contact?: { name?: string; email?: string; label?: string };
+  productUrls?: Record<string, string>;
+  productURLs?: Record<string, string>;
+  product_urls?: Record<string, string>;
 };
 
 function parseJsonWithMissingClosingBraceRepair<T>(raw: string): T {
@@ -58,12 +62,20 @@ function parseJsonWithMissingClosingBraceRepair<T>(raw: string): T {
 }
 
 function normalizeOrg(id: string, v: RawOrgConfig): OrgConfig {
+  const rawUrls = v.productUrls ?? v.productURLs ?? v.product_urls ?? {};
+  const productUrls: Record<string, string> = {};
+  for (const [slug, url] of Object.entries(rawUrls)) {
+    if (typeof url !== "string") continue;
+    const cleaned = url.trim().replace(/^"+|"+$/g, "").replace(/&amp;/g, "&");
+    if (cleaned) productUrls[slug] = cleaned;
+  }
   return {
     id,
     name: v.name ?? v.displayName ?? id,
     products: Array.isArray(v.products) ? v.products : [],
     contactName: v.contactName ?? v.contact?.name,
     contactEmail: v.contactEmail ?? v.contact?.email,
+    productUrls,
   };
 }
 

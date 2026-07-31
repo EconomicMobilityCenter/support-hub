@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkbookRouteImport } from './routes/workbook'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as ReportIssueRouteImport } from './routes/report-issue'
 import { Route as GetHelpRouteImport } from './routes/get-help'
@@ -20,6 +21,11 @@ import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lova
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
+const WorkbookRoute = WorkbookRouteImport.update({
+  id: '/workbook',
+  path: '/workbook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SupportRoute = SupportRouteImport.update({
   id: '/support',
   path: '/support',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/get-help': typeof GetHelpRoute
   '/report-issue': typeof ReportIssueRoute
   '/support': typeof SupportRoute
+  '/workbook': typeof WorkbookRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/training/': typeof TrainingIndexRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/get-help': typeof GetHelpRoute
   '/report-issue': typeof ReportIssueRoute
   '/support': typeof SupportRoute
+  '/workbook': typeof WorkbookRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/training': typeof TrainingIndexRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/get-help': typeof GetHelpRoute
   '/report-issue': typeof ReportIssueRoute
   '/support': typeof SupportRoute
+  '/workbook': typeof WorkbookRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/training/': typeof TrainingIndexRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/get-help'
     | '/report-issue'
     | '/support'
+    | '/workbook'
     | '/email/unsubscribe'
     | '/training/'
     | '/lovable/email/suppression'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/get-help'
     | '/report-issue'
     | '/support'
+    | '/workbook'
     | '/email/unsubscribe'
     | '/training'
     | '/lovable/email/suppression'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/get-help'
     | '/report-issue'
     | '/support'
+    | '/workbook'
     | '/email/unsubscribe'
     | '/training/'
     | '/lovable/email/suppression'
@@ -155,6 +167,7 @@ export interface RootRouteChildren {
   GetHelpRoute: typeof GetHelpRoute
   ReportIssueRoute: typeof ReportIssueRoute
   SupportRoute: typeof SupportRoute
+  WorkbookRoute: typeof WorkbookRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   TrainingIndexRoute: typeof TrainingIndexRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
@@ -165,6 +178,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workbook': {
+      id: '/workbook'
+      path: '/workbook'
+      fullPath: '/workbook'
+      preLoaderRoute: typeof WorkbookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/support': {
       id: '/support'
       path: '/support'
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   GetHelpRoute: GetHelpRoute,
   ReportIssueRoute: ReportIssueRoute,
   SupportRoute: SupportRoute,
+  WorkbookRoute: WorkbookRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   TrainingIndexRoute: TrainingIndexRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
@@ -253,13 +274,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
