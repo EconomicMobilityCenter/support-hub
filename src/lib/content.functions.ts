@@ -49,10 +49,18 @@ function parseJsonWithMissingClosingBraceRepair<T>(raw: string): T {
   try {
     return JSON.parse(raw) as T;
   } catch (initialError) {
-    const withoutTrailingCommas = raw.replace(/,\s*([}\]])/g, "$1");
-    const opens = (withoutTrailingCommas.match(/{/g) ?? []).length;
-    const closes = (withoutTrailingCommas.match(/}/g) ?? []).length;
-    const repaired = withoutTrailingCommas.trimEnd() + "}".repeat(Math.max(0, opens - closes));
+    let repaired = raw
+      // Doubled quotes around a value: "key": ""https://..."  ->  "key": "https://..."
+      .replace(/:(\s*)"{2,}/g, ':$1"')
+      .replace(/"{2,}(\s*[,}\]\r\n])/g, '"$1')
+      // Missing comma between members: a value ending in " } or ] followed by
+      // a newline and a new "key": on the next line.
+      .replace(/([}\]"])(\s*\r?\n\s*)"/g, "$1,$2\"")
+      // Trailing commas (possibly introduced by the step above)
+      .replace(/,(\s*[}\]])/g, "$1");
+    const opens = (repaired.match(/{/g) ?? []).length;
+    const closes = (repaired.match(/}/g) ?? []).length;
+    repaired = repaired.trimEnd() + "}".repeat(Math.max(0, opens - closes));
     try {
       return JSON.parse(repaired) as T;
     } catch {
