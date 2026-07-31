@@ -16,6 +16,7 @@ export const Route = createFileRoute("/")({
 function Index() {
   const { org, orgId } = useOrg();
   const products: string[] = org?.products ?? [];
+  const productUrls = org?.productUrls ?? {};
 
   return (
     <div className="bg-[#F4F5F7] min-h-screen">
@@ -77,9 +78,11 @@ function Index() {
             ) : (
               <ul className="space-y-2">
                 {products.map((p) => (
-                  <li
-                    key={p}
-                    className="flex items-center gap-3 rounded-lg p-3"
+                  <li key={p}>
+                    <Link
+                    to="/workbook"
+                    search={{ url: productUrls[p] ?? "", org: orgId, product: p }}
+                    className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2"
                     style={{ backgroundColor: "#F4F5F7" }}
                   >
                     <span
@@ -93,9 +96,10 @@ function Index() {
                         {productName(p)}
                       </div>
                       <div className="text-xs" style={{ color: "#6B6F76" }}>
-                        Your district's active product.
+                        Open workbook →
                       </div>
                     </div>
+                    </Link>
                   </li>
                 ))}
               </ul>
