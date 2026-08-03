@@ -79,27 +79,7 @@ function Index() {
               <ul className="space-y-2">
                 {products.map((p) => (
                   <li key={p}>
-                    <Link
-                    to="/workbook"
-                    search={{ url: productUrls[p] ?? "", org: orgId, product: p }}
-                    className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2"
-                    style={{ backgroundColor: "#F4F5F7" }}
-                  >
-                    <span
-                      className="grid size-9 shrink-0 place-items-center rounded-lg"
-                      style={{ backgroundColor: "#042C53" }}
-                    >
-                      <Table2 className="size-4" style={{ color: "#85B7EB" }} />
-                    </span>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium" style={{ color: "#1A1A1A" }}>
-                        {productName(p)}
-                      </div>
-                      <div className="text-xs" style={{ color: "#6B6F76" }}>
-                        Open workbook →
-                      </div>
-                    </div>
-                    </Link>
+                    <ProductRow product={p} url={productUrls[p]} orgId={orgId} />
                   </li>
                 ))}
               </ul>
