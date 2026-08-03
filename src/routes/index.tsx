@@ -104,6 +104,18 @@ function ActionCard({
   cta: string;
   icon: React.ReactNode;
 }) {
+  to,
+  title,
+  desc,
+  cta,
+  icon,
+}: {
+  to: "/training" | "/get-help";
+  title: string;
+  desc: string;
+  cta: string;
+  icon: React.ReactNode;
+}) {
   return (
     <Link
       to={to}
