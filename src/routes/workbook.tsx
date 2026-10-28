@@ -44,7 +44,7 @@ function WorkbookPage() {
           </div>
           <Link
             to="/"
-            search={(prev: Record<string, unknown>) => ({ org: prev.org })}
+            search={(prev: Record<string, unknown>) => ({ org: typeof prev.org === "string" ? prev.org : undefined })}
             className="inline-flex items-center gap-2 text-sm font-medium"
             style={{ color: "#185FA5" }}
           >
@@ -79,7 +79,7 @@ function WorkbookPage() {
             </p>
             <Link
               to="/get-help"
-              search={(prev: Record<string, unknown>) => ({ org: prev.org })}
+              search={(prev: Record<string, unknown>) => ({ org: typeof prev.org === "string" ? prev.org : undefined })}
               className="inline-block text-sm font-medium"
               style={{ color: "#185FA5" }}
             >
