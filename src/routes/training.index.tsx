@@ -123,6 +123,11 @@ function TrainingIndex() {
     const allowedProducts = new Set(orgProducts);
     const visible = data.items.filter((it) => {
       if (it.category !== "Training" || it.published === false) return false;
+      // Org-restricted items: only listed orgs plus "all"-product admin orgs.
+      // Public (no ?org=) does not count as admin here.
+      const orgIsAll = orgProducts.includes("all");
+      const restricted = it.orgs.length > 0 && !it.orgs.includes("all");
+      if (restricted) return orgIsAll || it.orgs.includes(orgId);
       if (isAdmin) return true;
       if (it.product) return allowedProducts.has(it.product);
       // Backward-compat: items without a product field fall back to orgs matching.
