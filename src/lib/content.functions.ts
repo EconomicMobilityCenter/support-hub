@@ -110,24 +110,34 @@ let failUntil = 0;
 
 type GitHubTreeEntry = { path: string; type: string };
 
-function githubHeaders(includeAuth = true): Record<string, string> {
+let warnedNoToken = false;
+
+function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
     "User-Agent": "emc-support-hub",
   };
-  if (includeAuth && process.env.GITHUB_TOKEN) {
+  if (process.env.GITHUB_TOKEN) {
     headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
   return headers;
 }
 
 async function fetchGitHubApi(url: string): Promise<Response> {
-  const authed = await fetch(url, { headers: githubHeaders(true) });
-  if ((authed.status === 401 || authed.status === 403) && process.env.GITHUB_TOKEN) {
-    console.warn(`[content] GitHub authed request failed with ${authed.status}; retrying public request`);
-    return fetch(url, { headers: githubHeaders(false) });
+  const hasToken = Boolean(process.env.GITHUB_TOKEN);
+  if (!hasToken && !warnedNoToken) {
+    warnedNoToken = true;
+    console.warn("[content] GITHUB_TOKEN not set; unauthenticated GitHub API limit (60/hour per IP) applies");
   }
-  return authed;
+  const res = await fetch(url, { headers: githubHeaders() });
+  if (hasToken && (res.status === 401 || res.status === 403)) {
+    console.warn(
+      `[content] GITHUB_TOKEN rejected or rate-limited: status=${res.status} ` +
+        `ratelimit-remaining=${res.headers.get("x-ratelimit-remaining")} ` +
+        `ratelimit-reset=${res.headers.get("x-ratelimit-reset")}`,
+    );
+  }
+  return res;
 }
 
 async function fetchRawText(path: string): Promise<string | null> {
@@ -199,14 +209,79 @@ function parseFrontmatter(raw: string, slug: string, dir: string): ContentItem |
   };
 }
 
-async function fetchBundle(): Promise<ContentBundle> {
-  try {
-    const SKIP = new Set(["README.md"]);
-    const isContentPath = (path: string) => {
-      const name = path.includes("/") ? path.slice(path.lastIndexOf("/") + 1) : path;
-      return !path.startsWith("Configuration/") && !SKIP.has(name) && (name.endsWith(".md") || name === "ccmr-faqs-md");
-    };
+const SKIP = new Set(["README.md"]);
+function isContentPath(path: string): boolean {
+  const name = path.includes("/") ? path.slice(path.lastIndexOf("/") + 1) : path;
+  return !path.startsWith("Configuration/") && !SKIP.has(name) && (name.endsWith(".md") || name === "ccmr-faqs-md");
+}
 
+function parseOrgs(orgsRaw: string | null | undefined): Record<string, OrgConfig> {
+  if (!orgsRaw) return {};
+  try {
+    const raw = parseJsonWithMissingClosingBraceRepair<Record<string, RawOrgConfig>>(orgsRaw);
+    return Object.fromEntries(Object.entries(raw).map(([id, v]) => [id, normalizeOrg(id, v)]));
+  } catch (err) {
+    console.warn(
+      "[content] Failed to parse orgs.json from GitHub — check JSON syntax:",
+      err instanceof Error ? err.message : err,
+    );
+    return {};
+  }
+}
+
+function parseFeedbackRouting(rawText: string | null | undefined): Record<string, FeedbackRoute> {
+  if (!rawText) return {};
+  try {
+    return parseJsonWithMissingClosingBraceRepair<Record<string, FeedbackRoute>>(rawText);
+  } catch (err) {
+    console.warn(
+      "[content] Failed to load feedback-routing.json:",
+      err instanceof Error ? err.message : err,
+    );
+    return {};
+  }
+}
+
+type PrebuiltBundle = {
+  generatedAt?: string;
+  files?: Record<string, unknown>;
+  orgsRaw?: string;
+  feedbackRoutingRaw?: string;
+};
+
+async function fetchPrebuiltBundle(): Promise<ContentBundle | null> {
+  try {
+    const r = await fetch(`${RAW_BASE}/Configuration/content-bundle.json`, { cache: "no-store" });
+    if (!r.ok) {
+      console.warn(`[content] content-bundle.json fetch failed ${r.status}`);
+      return null;
+    }
+    const json = (await r.json()) as PrebuiltBundle;
+    if (!json || typeof json.files !== "object" || json.files === null) return null;
+    const items: ContentItem[] = [];
+    for (const [path, raw] of Object.entries(json.files)) {
+      if (typeof raw !== "string" || !isContentPath(path)) continue;
+      const item = parseFrontmatter(raw, contentSlug(path), contentDir(path));
+      if (item) items.push(item);
+    }
+    if (items.length === 0) return null;
+    console.info(`[content] Loaded content-bundle.json generatedAt=${json.generatedAt ?? "unknown"}`);
+    return {
+      items,
+      orgs: parseOrgs(json.orgsRaw),
+      feedbackRouting: parseFeedbackRouting(json.feedbackRoutingRaw),
+    };
+  } catch (err) {
+    console.warn("[content] content-bundle.json invalid:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+async function fetchBundle(): Promise<ContentBundle> {
+  const prebuilt = await fetchPrebuiltBundle();
+  if (prebuilt) return prebuilt;
+  console.warn("[content] content-bundle.json unavailable, falling back to GitHub API");
+  try {
     const treeUrl = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`;
     const treeRes = await fetchGitHubApi(treeUrl);
     if (!treeRes.ok) {
@@ -225,42 +300,17 @@ async function fetchBundle(): Promise<ContentBundle> {
       filePaths.map(async (path) => {
         const raw = await fetchRawText(path);
         if (!raw) return;
-        const slug = contentSlug(path);
-        const dir = contentDir(path);
-        const item = parseFrontmatter(raw, slug, dir);
+        const item = parseFrontmatter(raw, contentSlug(path), contentDir(path));
         if (item) items.push(item);
       }),
     );
 
-    let orgs: Record<string, OrgConfig> = {};
-    const orgsRaw = await fetchRawText("Configuration/orgs.json");
-    if (orgsRaw) {
-      try {
-        const raw = parseJsonWithMissingClosingBraceRepair<Record<string, RawOrgConfig>>(orgsRaw);
-        orgs = Object.fromEntries(
-          Object.entries(raw).map(([id, v]) => [id, normalizeOrg(id, v)]),
-        );
-      } catch (err) {
-        console.warn(
-          "[content] Failed to parse orgs.json from GitHub — check JSON syntax:",
-          err instanceof Error ? err.message : err,
-        );
-        orgs = {};
-      }
-    }
-
+    const orgs = parseOrgs(await fetchRawText("Configuration/orgs.json"));
     let feedbackRouting: Record<string, FeedbackRoute> = {};
     try {
-      const rawText = await fetchRawText("Configuration/feedback-routing.json");
-      if (rawText) {
-        feedbackRouting =
-          parseJsonWithMissingClosingBraceRepair<Record<string, FeedbackRoute>>(rawText);
-      }
+      feedbackRouting = parseFeedbackRouting(await fetchRawText("Configuration/feedback-routing.json"));
     } catch (err) {
-      console.warn(
-        "[content] Failed to load feedback-routing.json:",
-        err instanceof Error ? err.message : err,
-      );
+      console.warn("[content] Failed to load feedback-routing.json:", err instanceof Error ? err.message : err);
     }
 
     return { items, orgs, feedbackRouting };
